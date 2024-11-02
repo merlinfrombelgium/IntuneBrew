@@ -108,50 +108,6 @@ Write-Host "All required permissions are present." -ForegroundColor Green
 # Import required modules
 Import-Module Microsoft.Graph.Authentication
 
-# Fetch supported apps from GitHub repository
-$supportedAppsUrl = "https://raw.githubusercontent.com/ugurkocde/IntuneBrew/refs/heads/main/supported_apps.json"
-$githubJsonUrls = @()
-
-try {
-    # Fetch the supported apps JSON
-    $supportedApps = Invoke-RestMethod -Uri $supportedAppsUrl -Method Get
-
-    # Allow user to select which apps to process
-    Write-Host "`nAvailable applications:" -ForegroundColor Cyan
-    # Add Sort-Object to sort the app names alphabetically
-    $supportedApps.PSObject.Properties | 
-    Sort-Object Name | 
-    ForEach-Object { 
-        Write-Host "  - $($_.Name)" 
-    }
-    Write-Host "`nEnter app names separated by commas (or 'all' for all apps):"
-    $selectedApps = Read-Host
-
-    if ($selectedApps.Trim().ToLower() -eq 'all') {
-        $githubJsonUrls = $supportedApps.PSObject.Properties.Value
-    }
-    else {
-        $selectedAppsList = $selectedApps.Split(',') | ForEach-Object { $_.Trim().ToLower() }
-        foreach ($app in $selectedAppsList) {
-            if ($supportedApps.PSObject.Properties.Name -contains $app) {
-                $githubJsonUrls += $supportedApps.$app
-            }
-            else {
-                Write-Host "Warning: '$app' is not a supported application" -ForegroundColor Yellow
-            }
-        }
-    }
-
-    if ($githubJsonUrls.Count -eq 0) {
-        Write-Host "No valid applications selected. Exiting..." -ForegroundColor Red
-        exit
-    }
-}
-catch {
-    Write-Host "Error fetching supported apps list: $_" -ForegroundColor Red
-    exit
-}
-
 # Core Functions
 
 # Fetches app information from GitHub JSON file
@@ -361,54 +317,6 @@ function Is-ValidUrl {
     }
 }
 
-# Retrieves and compares app versions between Intune and GitHub
-function Get-IntuneApps {
-    $intuneApps = @()
-
-    foreach ($jsonUrl in $githubJsonUrls) {
-        # Check if the URL is valid
-        if (-not (Is-ValidUrl $jsonUrl)) {
-            continue
-        }
-
-        # Fetch GitHub app info
-        $appInfo = Get-GitHubAppInfo $jsonUrl
-        if ($appInfo -eq $null) {
-            Write-Host "Failed to fetch app info for $jsonUrl. Skipping." -ForegroundColor Yellow
-            continue
-        }
-
-        $appName = $appInfo.name
-
-        # Fetch Intune app info
-        $intuneQueryUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$filter=(isof('microsoft.graph.macOSDmgApp') or isof('microsoft.graph.macOSPkgApp')) and displayName eq '$appName'"
-
-        try {
-            $response = Invoke-MgGraphRequest -Uri $intuneQueryUri -Method Get
-            if ($response.value.Count -gt 0) {
-                $intuneApp = $response.value[0]
-                $intuneApps += [PSCustomObject]@{
-                    Name          = $intuneApp.displayName
-                    IntuneVersion = $intuneApp.primaryBundleVersion
-                    GitHubVersion = $appInfo.version
-                }
-            }
-            else {
-                $intuneApps += [PSCustomObject]@{
-                    Name          = $appName
-                    IntuneVersion = 'Not in Intune'
-                    GitHubVersion = $appInfo.version
-                }
-            }
-        }
-        catch {
-            Write-Host "Error fetching Intune app info for '$appName': $_"
-        }
-    }
-
-    return $intuneApps
-}
-
 # Compares version strings accounting for build numbers
 function Is-NewerVersion($githubVersion, $intuneVersion) {
     if ($intuneVersion -eq 'Not in Intune') {
@@ -416,6 +324,11 @@ function Is-NewerVersion($githubVersion, $intuneVersion) {
     }
 
     try {
+        # Handle simple numeric versions (e.g., "15")
+        if ($githubVersion -match '^\d+$' -and $intuneVersion -match '^\d+$') {
+            return [int]$githubVersion -gt [int]$intuneVersion
+        }
+
         # Remove hyphens and everything after them for comparison
         $ghVersion = $githubVersion -replace '-.*$'
         $itVersion = $intuneVersion -replace '-.*$'
@@ -443,8 +356,9 @@ function Is-NewerVersion($githubVersion, $intuneVersion) {
         return $githubVersion -ne $intuneVersion
     }
     catch {
-        Write-Host "Version comparison failed: GitHubVersion='$githubVersion', IntuneVersion='$intuneVersion'. Assuming versions are equal." -ForegroundColor Yellow
-        return $false
+        Write-Host "Version comparison failed: GitHubVersion='$githubVersion', IntuneVersion='$intuneVersion'. Using string comparison." -ForegroundColor Yellow
+        # Fallback to simple string comparison
+        return $githubVersion -ne $intuneVersion
     }
 }
 
@@ -499,61 +413,424 @@ function Add-IntuneAppLogo {
     }
 }
 
-# Retrieve Intune app versions
-Write-Host "Fetching current Intune app versions..."
-$intuneAppVersions = Get-IntuneApps
-Write-Host ""
 
-# Prepare table data
-$tableData = @()
-foreach ($app in $intuneAppVersions) {
-    if ($app.IntuneVersion -eq 'Not in Intune') {
-        $status = "Not in Intune"
-        $statusColor = "Red"
-    }
-    elseif (Is-NewerVersion $app.GitHubVersion $app.IntuneVersion) {
-        $status = "Update Available"
-        $statusColor = "Yellow"
-    }
-    else {
-        $status = "Up-to-date"
-        $statusColor = "Green"
+# Retrieves and compares app versions between Intune and GitHub
+function Get-IntuneApps {
+    $intuneApps = @()
+
+    foreach ($jsonUrl in $githubJsonUrls) {
+        # Check if the URL is valid
+        if (-not (Is-ValidUrl $jsonUrl)) {
+            continue
+        }
+
+        # Fetch GitHub app info
+        $appInfo = Get-GitHubAppInfo $jsonUrl
+        if ($appInfo -eq $null) {
+            Write-Host "Failed to fetch app info for $jsonUrl. Skipping." -ForegroundColor Yellow
+            continue
+        }
+
+        $appName = $appInfo.name
+
+        # Fetch Intune app info
+        $intuneQueryUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$filter=(isof('microsoft.graph.macOSDmgApp') or isof('microsoft.graph.macOSPkgApp')) and displayName eq '$appName'"
+
+        try {
+            $response = Invoke-MgGraphRequest -Uri $intuneQueryUri -Method Get
+            if ($response.value.Count -gt 0) {
+                $intuneApp = $response.value[0]
+                $intuneApps += [PSCustomObject]@{
+                    Name          = $intuneApp.displayName
+                    IntuneVersion = $intuneApp.primaryBundleVersion
+                    GitHubVersion = $appInfo.version
+                }
+            }
+            else {
+                $intuneApps += [PSCustomObject]@{
+                    Name          = $appName
+                    IntuneVersion = 'Not in Intune'
+                    GitHubVersion = $appInfo.version
+                }
+            }
+        }
+        catch {
+            Write-Host "Error fetching Intune app info for '$appName': $_"
+        }
     }
 
-    $tableData += [PSCustomObject]@{
-        "App Name"       = $app.Name
-        "Latest Version" = $app.GitHubVersion
-        "Intune Version" = $app.IntuneVersion
-        "Status"         = $status
-        "StatusColor"    = $statusColor
-    }
+    return $intuneApps
 }
 
-# Function to write colored table
-function Write-ColoredTable {
+# Add Windows Forms assembly
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+# Add function to get supported app names from JSON files
+function Get-SupportedAppNames {
+    # Get the script's directory path
+    $scriptPath = $PSScriptRoot
+    if ([string]::IsNullOrEmpty($scriptPath)) {
+        $scriptPath = (Get-Location).Path
+    }
+    
+    $appsPath = Join-Path $scriptPath "Apps"
+    Write-Host "Loading UI. Please wait..." -ForegroundColor Gray
+    
+    if (Test-Path $appsPath) {
+        # Get all JSON files and extract their base names (without extension)
+        $jsonFiles = Get-ChildItem -Path $appsPath -Filter "*.json"
+        return $jsonFiles | ForEach-Object { 
+            # Create a mapping of display name to file name
+            @{
+                DisplayName = (Get-Content $_.FullName | ConvertFrom-Json).name
+                FileName    = $_.BaseName
+            }
+        }
+    }
+    Write-Host "Warning: Apps directory not found at $appsPath" -ForegroundColor Yellow
+    return @()
+}
+
+# Replace the table display and app selection logic with GUI
+function Show-AppSelectionGui {
     param (
         $TableData
     )
-
-    $lineSeparator = "+----------------------------+----------------------+----------------------+-----------------+"
     
-    Write-Host $lineSeparator
-    Write-Host ("| {0,-26} | {1,-20} | {2,-20} | {3,-15} |" -f "App Name", "Latest Version", "Intune Version", "Status") -ForegroundColor Cyan
-    Write-Host $lineSeparator
-
-    foreach ($row in $TableData) {
-        $color = $row.StatusColor
-        Write-Host ("| {0,-26} | {1,-20} | {2,-20} | {3,-15} |" -f $row.'App Name', $row.'Latest Version', $row.'Intune Version', $row.Status) -ForegroundColor $color
-        Write-Host $lineSeparator
+    # Get supported apps with their display names
+    $supportedApps = Get-SupportedAppNames
+    if ($supportedApps.Count -eq 0) {
+        Write-Host "No supported applications found in the Apps directory." -ForegroundColor Red
+        return $null
     }
+
+    # Create a hashtable for quick lookup of supported apps
+    $supportedAppsLookup = @{}
+    foreach ($app in $supportedApps) {
+        $supportedAppsLookup[$app.DisplayName] = $app.FileName
+    }
+
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = 'IntuneBrew - App Selection'
+    $form.Size = New-Object System.Drawing.Size(1200, 800)
+    $form.StartPosition = 'CenterScreen'
+    $form.BackColor = [System.Drawing.Color]::White
+
+    # Create search box and buttons panel at top
+    $topPanel = New-Object System.Windows.Forms.Panel
+    $topPanel.Location = New-Object System.Drawing.Point(10, 10)
+    $topPanel.Size = New-Object System.Drawing.Size(1160, 30)
+
+    # Create search box (adjusted width to make room for buttons)
+    $searchBox = New-Object System.Windows.Forms.TextBox
+    $searchBox.Location = New-Object System.Drawing.Point(0, 0)
+    $searchBox.Size = New-Object System.Drawing.Size(300, 20)
+    $searchBox.PlaceholderText = "Search applications..."
+
+    # Add "Show All" button (moved from bottom)
+    $btnShowAll = New-Object System.Windows.Forms.Button
+    $btnShowAll.Location = New-Object System.Drawing.Point(320, 0)
+    $btnShowAll.Size = New-Object System.Drawing.Size(120, 25)
+    $btnShowAll.Text = "Show All"
+    $btnShowAll.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $btnShowAll.Add_Click({
+            foreach ($card in $flowPanel.Controls) {
+                $card.Visible = $true
+                # Uncheck boxes when showing all
+                $checkbox = $card.Controls | Where-Object { $_ -is [System.Windows.Forms.CheckBox] }
+                if ($checkbox) {
+                    $checkbox.Checked = $false
+                }
+            }
+            # Clear the search box
+            $searchBox.Text = ""
+        })
+
+    # Add "Show Available Updates" button
+    $btnSelectUpdates = New-Object System.Windows.Forms.Button
+    $btnSelectUpdates.Location = New-Object System.Drawing.Point(450, 0)
+    $btnSelectUpdates.Size = New-Object System.Drawing.Size(150, 25)
+    $btnSelectUpdates.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+
+   
+
+    # Add controls to top panel
+    $topPanel.Controls.AddRange(@($searchBox, $btnShowAll, $btnSelectUpdates))
+
+    # Update FlowPanel location to account for new top panel layout
+    $flowPanel = New-Object System.Windows.Forms.FlowLayoutPanel
+    $flowPanel.Location = New-Object System.Drawing.Point(10, 50)
+    $flowPanel.Size = New-Object System.Drawing.Size(1160, 650)
+    $flowPanel.AutoScroll = $true
+    $flowPanel.BackColor = [System.Drawing.Color]::WhiteSmoke
+    $flowPanel.Padding = New-Object System.Windows.Forms.Padding(10)
+
+    # Function to create app card
+    function Create-AppCard($app) {
+        $card = New-Object System.Windows.Forms.Panel
+        $card.Size = New-Object System.Drawing.Size(350, 150)
+        $card.BackColor = [System.Drawing.Color]::White
+        $card.Margin = New-Object System.Windows.Forms.Padding(8)
+        $card.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
+        $card.Cursor = [System.Windows.Forms.Cursors]::Hand
+
+        # Create a function to handle clicks that will be reused
+        $clickHandler = {
+            param($sender, $e)
+            $parentCard = if ($sender -is [System.Windows.Forms.Panel]) { 
+                $sender 
+            }
+            else { 
+                $sender.Parent 
+            }
+            $checkbox = $parentCard.Controls | Where-Object { $_ -is [System.Windows.Forms.CheckBox] }
+            if ($checkbox) {
+                $checkbox.Checked = !$checkbox.Checked
+            }
+        }
+
+        # Add click handler for the card
+        $card.Add_Click($clickHandler)
+
+        # Visual feedback on click
+        $card.Add_MouseDown({
+                $this.BackColor = [System.Drawing.Color]::FromArgb(230, 230, 230)
+            })
+
+        $card.Add_MouseUp({
+                $originalColor = $this.Tag -as [System.Drawing.Color]
+                if ($originalColor) {
+                    $this.BackColor = $originalColor
+                }
+            })
+
+        $checkbox = New-Object System.Windows.Forms.CheckBox
+        $checkbox.Location = New-Object System.Drawing.Point(10, 60)
+        $checkbox.AutoSize = $true
+        $checkbox.Tag = $app.'App Name'
+        
+        # Create and setup icon with larger size
+        $icon = New-Object System.Windows.Forms.PictureBox
+        # Increased icon size
+        $icon.Size = New-Object System.Drawing.Size(96, 96)
+        # Adjusted icon position
+        $icon.Location = New-Object System.Drawing.Point(40, 26)
+        $icon.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::Zoom
+        $icon.Add_Click($clickHandler)
+
+        # Try to load the app logo
+        try {
+            $logoFileName = $app.'App Name'.ToLower().Replace(" ", "_") + ".png"
+            $logoUrl = "https://raw.githubusercontent.com/ugurkocde/IntuneBrew/main/Logos/$logoFileName"
+            
+            # Download the image to memory
+            $webClient = New-Object System.Net.WebClient
+            $imageBytes = $webClient.DownloadData($logoUrl)
+            $memoryStream = New-Object System.IO.MemoryStream($imageBytes, 0, $imageBytes.Length)
+            $icon.Image = [System.Drawing.Image]::FromStream($memoryStream)
+        }
+        catch {
+            Write-Host "Could not load logo for $($app.'App Name'): $_" -ForegroundColor Yellow
+        }
+
+        $nameLabel = New-Object System.Windows.Forms.Label
+        $nameLabel.Text = $app.'App Name'
+        $nameLabel.Location = New-Object System.Drawing.Point(150, 20)
+        $nameLabel.Size = New-Object System.Drawing.Size(190, 20)
+        $nameLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+        $nameLabel.Add_Click($clickHandler)
+
+        $versionLabel = New-Object System.Windows.Forms.Label
+        $versionLabel.Text = "Latest: $($app.'Latest Version')"
+        $versionLabel.Location = New-Object System.Drawing.Point(150, 50)
+        $versionLabel.Size = New-Object System.Drawing.Size(190, 20)
+        $versionLabel.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+        $versionLabel.Add_Click($clickHandler)
+
+        $intuneVersionLabel = New-Object System.Windows.Forms.Label
+        $intuneVersionLabel.Text = "Intune: $($app.'Intune Version')"
+        $intuneVersionLabel.Location = New-Object System.Drawing.Point(150, 80)
+        $intuneVersionLabel.Size = New-Object System.Drawing.Size(190, 20)
+        $intuneVersionLabel.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+        $intuneVersionLabel.Add_Click($clickHandler)
+
+        $statusLabel = New-Object System.Windows.Forms.Label
+        $statusLabel.Location = New-Object System.Drawing.Point(150, 110)
+        $statusLabel.Size = New-Object System.Drawing.Size(190, 20)
+        $statusLabel.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+        $statusLabel.Add_Click($clickHandler)
+
+        # Status label logic
+        if ($app.'Intune Version' -eq 'Not in Intune') {
+            $statusLabel.Text = "New App"
+            $statusLabel.ForeColor = [System.Drawing.Color]::Red
+            #$card.BackColor = [System.Drawing.Color]::FromArgb(255, 245, 245)
+            $card.Tag = [System.Drawing.Color]::FromArgb(255, 245, 245)
+        }
+        elseif ((Is-NewerVersion $app.'Latest Version' $app.'Intune Version')) {
+            $statusLabel.Text = "Update Available"
+            $statusLabel.ForeColor = [System.Drawing.Color]::Orange
+            $card.BackColor = [System.Drawing.Color]::FromArgb(255, 250, 240)
+            $card.Tag = [System.Drawing.Color]::FromArgb(255, 250, 240)
+        }
+        else {
+            $statusLabel.Text = "Up to date"
+            $statusLabel.ForeColor = [System.Drawing.Color]::Green
+            $card.BackColor = [System.Drawing.Color]::FromArgb(240, 255, 240)
+            $card.Tag = [System.Drawing.Color]::FromArgb(240, 255, 240)
+        }
+
+        # Add all controls to the card
+        $card.Controls.AddRange(@($checkbox, $icon, $nameLabel, $versionLabel, $intuneVersionLabel, $statusLabel))
+
+        return $card
+    }
+
+    # Add app cards to flow panel
+    foreach ($app in ($TableData | Sort-Object 'App Name')) {
+        if ($app.'App Name') {
+            $card = Create-AppCard $app
+            $flowPanel.Controls.Add($card)
+        }
+    }
+
+    # Calculate initial update count
+    $initialUpdateCount = ($flowPanel.Controls | ForEach-Object {
+            $statusLabel = $_.Controls | Where-Object { $_ -is [System.Windows.Forms.Label] -and $_.Location.Y -eq 110 }
+            if ($statusLabel -and $statusLabel.Text -eq "Update Available") {
+                1
+            }
+            else {
+                0
+            }
+        } | Measure-Object -Sum).Sum
+
+    # Set initial button text with count
+    $btnSelectUpdates.Text = "$initialUpdateCount Updates Available"
+
+    $btnSelectUpdates.Add_Click({
+            $updateCount = 0
+            $newAppCount = 0
+            foreach ($card in $flowPanel.Controls) {
+                $statusLabel = $card.Controls | Where-Object { $_ -is [System.Windows.Forms.Label] -and $_.Location.Y -eq 110 }
+                $checkbox = $card.Controls | Where-Object { $_ -is [System.Windows.Forms.CheckBox] }
+                if ($statusLabel) {
+                    # Count separately for updates and new apps
+                    if ($statusLabel.Text -eq "Update Available") {
+                        $updateCount++
+                        $card.Visible = $true
+                    }
+                    elseif ($statusLabel.Text -eq "New App") {
+                        $newAppCount++
+                        $card.Visible = $false  # Hide new apps
+                    }
+                    else {
+                        $card.Visible = $false  # Hide up-to-date apps
+                    }
+                
+                    # Remove the checkbox selection
+                    if ($checkbox) {
+                        $checkbox.Checked = $false
+                    }
+                }
+            }
+            # Update button text with only update count
+            $btnSelectUpdates.Text = "$updateCount Updates Available"
+        })
+
+    # Add search functionality
+    $searchBox.Add_TextChanged({
+            $searchText = $searchBox.Text.ToLower()
+            foreach ($card in $flowPanel.Controls) {
+                $appName = $card.Controls | Where-Object { $_ -is [System.Windows.Forms.Label] -and $_.Font.Bold } | Select-Object -First 1
+                if ($appName) {
+                    $card.Visible = $appName.Text.ToLower().Contains($searchText)
+                }
+            }
+        })
+
+    # Update button panel (now only contains OK button)
+    $buttonPanel = New-Object System.Windows.Forms.Panel
+    $buttonPanel.Location = New-Object System.Drawing.Point(10, 710)
+    $buttonPanel.Size = New-Object System.Drawing.Size(1160, 40)
+
+    $btnOK = New-Object System.Windows.Forms.Button
+    $btnOK.Location = New-Object System.Drawing.Point(1050, 0)
+    $btnOK.Size = New-Object System.Drawing.Size(100, 30)
+    $btnOK.Text = "Close"
+    $btnOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $btnOK.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+
+    # Add OK button to button panel
+    $buttonPanel.Controls.Add($btnOK)
+
+    # Update form controls
+    $form.Controls.Clear()
+    $form.Controls.AddRange(@($topPanel, $flowPanel, $buttonPanel))
+    $form.AcceptButton = $btnOK
+    $form.CancelButton = $btnCancel
+
+    # Show form and get result
+    $result = $form.ShowDialog()
+
+    if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+        $selectedApps = @()
+        foreach ($card in $flowPanel.Controls) {
+            $checkbox = $card.Controls | Where-Object { $_ -is [System.Windows.Forms.CheckBox] }
+            if ($checkbox -and $checkbox.Checked) {
+                $appName = $checkbox.Tag
+                if ($supportedAppsLookup.ContainsKey($appName)) {
+                    $selectedApps += $supportedAppsLookup[$appName]
+                }
+            }
+        }
+        return $selectedApps
+    }
+    return $null
 }
 
-# Display the colored table with lines
-Write-ColoredTable $tableData
+# Replace the existing app selection code with:
+$selectedApps = Show-AppSelectionGui $tableData
+if ($null -eq $selectedApps) {
+    Write-Host "Operation cancelled by user." -ForegroundColor Yellow
+    Disconnect-MgGraph > $null 2>&1
+    Write-Host "Disconnected from Microsoft Graph." -ForegroundColor Green
+    exit 0
+}
+
+# Reset githubJsonUrls for actual processing
+$githubJsonUrls = @()
+foreach ($app in $selectedApps) {
+    # Construct the GitHub JSON URL
+    $jsonUrl = "https://raw.githubusercontent.com/ugurkocde/IntuneBrew/main/Apps/$app.json"
+    $githubJsonUrls += $jsonUrl
+}
+
+if ($githubJsonUrls.Count -eq 0) {
+    Write-Host "No valid applications selected. Exiting..." -ForegroundColor Red
+    exit
+}
+
+# Get current versions from Intune
+$intuneAppVersions = Get-IntuneApps
 
 # Filter apps that need to be uploaded
-$appsToUpload = $intuneAppVersions | Where-Object { 
-    $_.IntuneVersion -eq 'Not in Intune' -or (Is-NewerVersion $_.GitHubVersion $_.IntuneVersion)
+$appsToUpload = @()
+foreach ($jsonUrl in $githubJsonUrls) {
+    $appInfo = Get-GitHubAppInfo -jsonUrl $jsonUrl
+    if ($appInfo -eq $null) { continue }
+    
+    $intuneVersion = ($intuneAppVersions | Where-Object { $_.Name -eq $appInfo.name }).IntuneVersion
+    if ($intuneVersion -eq $null) { $intuneVersion = 'Not in Intune' }
+    
+    if ($intuneVersion -eq 'Not in Intune' -or (Is-NewerVersion $appInfo.version $intuneVersion)) {
+        $appsToUpload += @{
+            Name          = $appInfo.name
+            GitHubVersion = $appInfo.version
+            IntuneVersion = $intuneVersion
+        }
+    }
 }
 
 if ($appsToUpload.Count -eq 0) {
@@ -565,7 +842,7 @@ if ($appsToUpload.Count -eq 0) {
 
 # Create custom message based on app statuses
 $newApps = @($appsToUpload | Where-Object { $_.IntuneVersion -eq 'Not in Intune' })
-$updatableApps = @($appsToUpload | Where-Object { $_.IntuneVersion -ne 'Not in Intune' -and (Is-NewerVersion $_.GitHubVersion $_.IntuneVersion) })
+$updatableApps = @($appsToUpload | Where-Object { $_.IntuneVersion -ne 'Not in Intune' })
 
 # Construct the message
 if (($newApps.Length + $updatableApps.Length) -eq 0) {
@@ -803,6 +1080,6 @@ foreach ($jsonUrl in $githubJsonUrls) {
 }
 
 Write-Host "`n🎉 All operations completed successfully!" -ForegroundColor Green
-Disconnect-MgGraph > $null 2>&1
+#Disconnect-MgGraph > $null 2>&1
 Write-Host "Disconnected from Microsoft Graph." -ForegroundColor Green
 
