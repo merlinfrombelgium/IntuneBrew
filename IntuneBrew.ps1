@@ -11,8 +11,8 @@
     File Name      : IntuneBrew.ps1
     Author         : Ugur Koc
     Prerequisite   : PowerShell 7+, Microsoft Graph PowerShell SDK
-    Version        : 0.3 Preview
-    Date           : 2024-10-27
+    Version        : 0.4 Preview
+    Date           : 2024-11-02
 
 .LINK
     https://github.com/ugurkocde/IntuneBrew
@@ -31,8 +31,8 @@ ___       _                    ____
 
 Write-Host "IntuneBrew - Automated macOS Application Deployment via Microsoft Intune" -ForegroundColor Green
 Write-Host "Made by Ugur Koc with" -NoNewline; Write-Host " ❤️  and ☕" -NoNewline
-Write-Host " | Version" -NoNewline; Write-Host " 0.3 Public Preview" -ForegroundColor Yellow -NoNewline
-Write-Host " | Last updated: " -NoNewline; Write-Host "2024-10-27" -ForegroundColor Magenta
+Write-Host " | Version" -NoNewline; Write-Host " 0.4 Public Preview" -ForegroundColor Yellow -NoNewline
+Write-Host " | Last updated: " -NoNewline; Write-Host "2024-11-02" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "This is a preview version. If you have any feedback, please open an issue at https://github.com/ugurkocde/IntuneBrew/issues. Thank you!" -ForegroundColor Cyan
 Write-Host "You can sponsor the development of this project at https://github.com/sponsors/ugurkocde" -ForegroundColor Red
