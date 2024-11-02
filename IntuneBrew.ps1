@@ -432,30 +432,39 @@ function Get-IntuneApps {
         }
 
         $appName = $appInfo.name
+        #Write-Host "Checking Intune status for: $appName" -ForegroundColor Gray
 
-        # Fetch Intune app info
+        # Fetch Intune app info with expanded filter
         $intuneQueryUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$filter=(isof('microsoft.graph.macOSDmgApp') or isof('microsoft.graph.macOSPkgApp')) and displayName eq '$appName'"
 
         try {
             $response = Invoke-MgGraphRequest -Uri $intuneQueryUri -Method Get
+            #Write-Host "Found $($response.value.Count) matching app(s) in Intune" -ForegroundColor Gray
+            
             if ($response.value.Count -gt 0) {
                 $intuneApp = $response.value[0]
+                #Write-Host "Intune version: $($intuneApp.primaryBundleVersion)" -ForegroundColor Gray
+                #Write-Host "GitHub version: $($appInfo.version)" -ForegroundColor Gray
+                
                 $intuneApps += [PSCustomObject]@{
                     Name          = $intuneApp.displayName
                     IntuneVersion = $intuneApp.primaryBundleVersion
                     GitHubVersion = $appInfo.version
+                    Id            = $intuneApp.id
                 }
             }
             else {
+                #Write-Host "App not found in Intune" -ForegroundColor Gray
                 $intuneApps += [PSCustomObject]@{
                     Name          = $appName
                     IntuneVersion = 'Not in Intune'
                     GitHubVersion = $appInfo.version
+                    Id            = $null
                 }
             }
         }
         catch {
-            Write-Host "Error fetching Intune app info for '$appName': $_"
+            #Write-Host "Error fetching Intune app info for '$appName': $_" -ForegroundColor Red
         }
     }
 
@@ -497,6 +506,9 @@ function Show-AppSelectionGui {
     param (
         $TableData
     )
+    
+    # Get fresh Intune data before building the GUI
+    $intuneAppVersions = Get-IntuneApps
     
     # Get supported apps with their display names
     $supportedApps = Get-SupportedAppNames
@@ -649,7 +661,14 @@ function Show-AppSelectionGui {
         $versionLabel.Add_Click($clickHandler)
 
         $intuneVersionLabel = New-Object System.Windows.Forms.Label
-        $intuneVersionLabel.Text = "Intune: $($app.'Intune Version')"
+        $currentIntuneApp = $intuneAppVersions | Where-Object { $_.Name -eq $app.'App Name' }
+        $intuneVersion = if ($currentIntuneApp -and $currentIntuneApp.IntuneVersion -ne 'Not in Intune') {
+            "Intune: $($currentIntuneApp.IntuneVersion)"
+        }
+        else {
+            "Intune: Not available"
+        }
+        $intuneVersionLabel.Text = $intuneVersion
         $intuneVersionLabel.Location = New-Object System.Drawing.Point(150, 80)
         $intuneVersionLabel.Size = New-Object System.Drawing.Size(190, 20)
         $intuneVersionLabel.Font = New-Object System.Drawing.Font("Segoe UI", 8)
@@ -661,14 +680,16 @@ function Show-AppSelectionGui {
         $statusLabel.Font = New-Object System.Drawing.Font("Segoe UI", 8)
         $statusLabel.Add_Click($clickHandler)
 
-        # Status label logic
-        if ($app.'Intune Version' -eq 'Not in Intune') {
+        # Update status label logic to use fresh Intune data
+        $currentIntuneApp = $intuneAppVersions | Where-Object { $_.Name -eq $app.'App Name' }
+        $intuneVersion = if ($currentIntuneApp) { $currentIntuneApp.IntuneVersion } else { 'Not in Intune' }
+        
+        if ($intuneVersion -eq 'Not in Intune') {
             $statusLabel.Text = "New App"
             $statusLabel.ForeColor = [System.Drawing.Color]::Red
-            #$card.BackColor = [System.Drawing.Color]::FromArgb(255, 245, 245)
             $card.Tag = [System.Drawing.Color]::FromArgb(255, 245, 245)
         }
-        elseif ((Is-NewerVersion $app.'Latest Version' $app.'Intune Version')) {
+        elseif ((Is-NewerVersion $app.'Latest Version' $intuneVersion)) {
             $statusLabel.Text = "Update Available"
             $statusLabel.ForeColor = [System.Drawing.Color]::Orange
             $card.BackColor = [System.Drawing.Color]::FromArgb(255, 250, 240)
@@ -750,7 +771,7 @@ function Show-AppSelectionGui {
             }
         })
 
-    # Update button panel (now only contains OK button)
+    # Continue Button
     $buttonPanel = New-Object System.Windows.Forms.Panel
     $buttonPanel.Location = New-Object System.Drawing.Point(10, 710)
     $buttonPanel.Size = New-Object System.Drawing.Size(1160, 40)
@@ -758,11 +779,11 @@ function Show-AppSelectionGui {
     $btnOK = New-Object System.Windows.Forms.Button
     $btnOK.Location = New-Object System.Drawing.Point(1050, 0)
     $btnOK.Size = New-Object System.Drawing.Size(100, 30)
-    $btnOK.Text = "Close"
+    $btnOK.Text = "Continue"
     $btnOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $btnOK.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
 
-    # Add OK button to button panel
+    # Add Continue button to button panel
     $buttonPanel.Controls.Add($btnOK)
 
     # Update form controls
@@ -790,19 +811,23 @@ function Show-AppSelectionGui {
     return $null
 }
 
-# Replace the existing app selection code with:
-$selectedApps = Show-AppSelectionGui $tableData
-if ($null -eq $selectedApps) {
-    Write-Host "Operation cancelled by user." -ForegroundColor Yellow
-    Disconnect-MgGraph > $null 2>&1
-    Write-Host "Disconnected from Microsoft Graph." -ForegroundColor Green
-    exit 0
+# Before showing the GUI, get all available apps
+$allApps = Get-SupportedAppNames
+$githubJsonUrls = @()
+foreach ($app in $allApps) {
+    $jsonUrl = "https://raw.githubusercontent.com/ugurkocde/IntuneBrew/main/Apps/$($app.FileName).json"
+    $githubJsonUrls += $jsonUrl
 }
 
-# Reset githubJsonUrls for actual processing
+# Get current versions from Intune for all apps
+$intuneAppVersions = Get-IntuneApps
+
+# Now show the GUI with complete data
+$selectedApps = Show-AppSelectionGui $tableData
+
+# After selection, reset githubJsonUrls for actual processing
 $githubJsonUrls = @()
 foreach ($app in $selectedApps) {
-    # Construct the GitHub JSON URL
     $jsonUrl = "https://raw.githubusercontent.com/ugurkocde/IntuneBrew/main/Apps/$app.json"
     $githubJsonUrls += $jsonUrl
 }
@@ -811,9 +836,6 @@ if ($githubJsonUrls.Count -eq 0) {
     Write-Host "No valid applications selected. Exiting..." -ForegroundColor Red
     exit
 }
-
-# Get current versions from Intune
-$intuneAppVersions = Get-IntuneApps
 
 # Filter apps that need to be uploaded
 $appsToUpload = @()
