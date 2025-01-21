@@ -120,22 +120,38 @@ Write-Host "All required permissions are present." -ForegroundColor Green
 if ($GUI) {
     Write-Host "Checking requirements for GUI mode..." -ForegroundColor Yellow
 
-    # Check if Python3 is installed
+    # Get the script directory path
+    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+    Set-Location -Path $scriptPath
+
+    # Define virtual environment paths
+    $venvPath = Join-Path $scriptPath ".venv"
+    $venvPython = if ($IsWindows) { Join-Path $venvPath "Scripts\python.exe" } else { Join-Path $venvPath "bin/python" }
+    $venvPip = if ($IsWindows) { Join-Path $venvPath "Scripts\pip.exe" } else { Join-Path $venvPath "bin/pip" }
+
+    # Install UV if not already installed and verify Python version
     try {
-        $pythonVersion = python3 --version 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "❌ Python3 is not installed. Please install Python3 to use GUI mode." -ForegroundColor Red
+        # Check if Python 3.11+ is installed first
+        try {
+            # Get Python version
+            $pythonVersion = python -c "import sys; v=sys.version_info; print(f'{v.major}.{v.minor}')" 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "❌ Python is not installed. Please install Python 3.11 or higher." -ForegroundColor Red
+                exit 1
+            }
+            if ([version]$pythonVersion -lt [version]"3.11") {
+                Write-Host "❌ Python version $pythonVersion is not supported. Please install Python 3.11 or higher." -ForegroundColor Red
+                exit 1
+            }
+            Write-Host "✅ Python $pythonVersion detected" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "❌ Error checking Python version. Please install Python 3.11 or higher." -ForegroundColor Red
+            Write-Host "Error details: $_" -ForegroundColor Yellow
             exit 1
         }
-        Write-Host "✅ Python3 detected: $pythonVersion" -ForegroundColor Green
-    }
-    catch {
-        Write-Host "❌ Python3 is not installed. Please install Python3 to use GUI mode." -ForegroundColor Red
-        exit 1
-    }
 
-    # Install UV if not already installed
-    try {
+        # Now check UV
         $uvCheck = Get-Command uv -ErrorAction SilentlyContinue
         if (-not $uvCheck) {
             Write-Host "❌ UV not found. Installing UV..." -ForegroundColor Yellow
@@ -148,28 +164,89 @@ if ($GUI) {
             Write-Host "✅ UV detected" -ForegroundColor Green
         }
 
-        # Install required Python packages using UV
+        # Create virtual environment if it doesn't exist
+        if (-not (Test-Path $venvPath)) {
+            Write-Host "Creating virtual environment..." -ForegroundColor Yellow
+            python -m venv $venvPath
+            Write-Host "✅ Virtual environment created" -ForegroundColor Green
+        }
+
+        # Verify virtual environment Python
+        if (Test-Path $venvPython) {
+            $venvPythonVersion = & $venvPython -c "import sys; v=sys.version_info; print(f'{v.major}.{v.minor}')" 2>&1
+            if ($LASTEXITCODE -ne 0 -or [version]$venvPythonVersion -lt [version]"3.11") {
+                Write-Host "❌ Virtual environment Python version $venvPythonVersion is not supported. Recreating virtual environment..." -ForegroundColor Red
+                Remove-Item $venvPath -Recurse -Force
+                python -m venv $venvPath
+                $venvPythonVersion = & $venvPython -c "import sys; v=sys.version_info; print(f'{v.major}.{v.minor}')" 2>&1
+            }
+            Write-Host "✅ Virtual environment Python $venvPythonVersion detected" -ForegroundColor Green
+        }
+        else {
+            Write-Host "❌ Virtual environment Python not found at: $venvPython" -ForegroundColor Red
+            exit 1
+        }
+
+        # Install required Python packages using UV in the virtual environment
         Write-Host "Installing required Python packages..." -ForegroundColor Yellow
-        uv pip install flask flask-cors
+        & $venvPython -m pip install uv
+        & $venvPython -m uv pip install flask flask-cors
         Write-Host "✅ Python packages installed successfully" -ForegroundColor Green
     }
     catch {
-        Write-Host "❌ Error installing dependencies: $_" -ForegroundColor Red
+        Write-Host "❌ Error setting up environment: $_" -ForegroundColor Red
         exit 1
     }
 
     Write-Host "Starting web server..." -ForegroundColor Yellow
 
-    # Get the script directory path
-    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-    Set-Location -Path $scriptPath
-
-    # Start the Flask app
-    Start-Process pwsh -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'python3 app.py' -WindowStyle Hidden
+    # Start the Flask app as a job with isolated environment
+    $flaskJob = Start-Job -ScriptBlock {
+        param($venvPython, $scriptPath)
+        
+        # Clear any existing Python-related environment variables
+        Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+        Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
+        Remove-Item Env:PATH -ErrorAction SilentlyContinue
+        
+        # Set minimal PATH with only what we need
+        $env:PATH = "$(Split-Path $venvPython -Parent);$env:SystemRoot\system32;$env:SystemRoot"
+        
+        # Set virtual environment
+        $env:VIRTUAL_ENV = Split-Path $venvPython -Parent | Split-Path -Parent
+        
+        Set-Location $scriptPath
+        Write-Host "Starting Flask with Python: $venvPython"
+        & $venvPython app.py
+    } -ArgumentList $venvPython, $scriptPath
 
     Write-Host "Access the web app at http://127.0.0.1:3000" -ForegroundColor Cyan
     Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Yellow
-    #Start-Sleep -Seconds 2
+
+    try {
+        # Keep the script running and monitor the job
+        while ($true) {
+            $jobState = $flaskJob | Get-Job
+            if ($jobState.State -eq 'Failed') {
+                Write-Host "❌ Web server crashed. Error:" -ForegroundColor Red
+                Receive-Job $flaskJob
+                break
+            }
+            # Show job output in real-time
+            Receive-Job $flaskJob
+            Start-Sleep -Seconds 1
+        }
+    }
+    finally {
+        # Cleanup when the script exits
+        if ($flaskJob) {
+            Write-Host "`nStopping web server..." -ForegroundColor Yellow
+            Stop-Job $flaskJob
+            Remove-Job $flaskJob -Force
+        }
+        Write-Host "Web server stopped." -ForegroundColor Green
+        exit 0
+    }
 }
 
 # Authentication END
@@ -438,50 +515,100 @@ function Is-ValidUrl {
 
 # Retrieves and compares app versions between Intune and GitHub
 function Get-IntuneApps {
-    $intuneApps = @()
+    param(
+        [switch]$GuiMode
+    )
 
-    foreach ($jsonUrl in $githubJsonUrls) {
-        # Check if the URL is valid
-        if (-not (Is-ValidUrl $jsonUrl)) {
-            continue
-        }
+    if ($GuiMode) {
+        # For GUI mode, just get all macOS apps from Intune in one go with pagination
+        $intuneApps = @()
+        $baseUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$filter=(isof('microsoft.graph.macOSDmgApp') or isof('microsoft.graph.macOSPkgApp'))"
+        $nextLink = $baseUri
 
-        # Fetch GitHub app info
-        $appInfo = Get-GitHubAppInfo $jsonUrl
-        if ($appInfo -eq $null) {
-            Write-Host "Failed to fetch app info for $jsonUrl. Skipping." -ForegroundColor Yellow
-            continue
-        }
-
-        $appName = $appInfo.name
-
-        # Fetch Intune app info
-        $intuneQueryUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$filter=(isof('microsoft.graph.macOSDmgApp') or isof('microsoft.graph.macOSPkgApp')) and displayName eq '$appName'"
-
-        try {
-            $response = Invoke-MgGraphRequest -Uri $intuneQueryUri -Method Get
-            if ($response.value.Count -gt 0) {
-                $intuneApp = $response.value[0]
-                $intuneApps += [PSCustomObject]@{
-                    Name          = $intuneApp.displayName
-                    IntuneVersion = $intuneApp.primaryBundleVersion
-                    GitHubVersion = $appInfo.version
+        Write-Host "Fetching all macOS apps from Intune..." -ForegroundColor Yellow
+        while ($nextLink) {
+            try {
+                Write-Host "Making Graph API request..." -ForegroundColor Gray
+                $response = Invoke-MgGraphRequest -Uri $nextLink -Method Get -ErrorAction Stop
+                Write-Host "Response received" -ForegroundColor Gray
+                if ($response.value) {
+                    Write-Host "Found $($response.value.Count) apps in this page" -ForegroundColor Gray
+                    $intuneApps += $response.value
                 }
+                $nextLink = $response.'@odata.nextLink'
             }
-            else {
-                $intuneApps += [PSCustomObject]@{
-                    Name          = $appName
-                    IntuneVersion = 'Not in Intune'
-                    GitHubVersion = $appInfo.version
-                }
+            catch {
+                Write-Host "Error fetching Intune apps: $_" -ForegroundColor Red
+                Write-Host "Graph API Context: $(Get-MgContext | ConvertTo-Json)" -ForegroundColor Yellow
+                return @()
             }
         }
-        catch {
-            Write-Host "Error fetching Intune app info for '$appName': $_"
+        Write-Host "✅ Found $($intuneApps.Count) total apps in Intune" -ForegroundColor Green
+
+        if ($intuneApps.Count -eq 0) {
+            Write-Host "No apps found in Intune" -ForegroundColor Yellow
+            return @()
         }
+
+        # Return raw Intune data for Flask app to process
+        $result = @($intuneApps | Where-Object { $_ -ne $null } | Select-Object displayName, primaryBundleVersion, '@odata.type' | ForEach-Object {
+            @{
+                Name = $_.displayName
+                IntuneVersion = if ($_.primaryBundleVersion) { $_.primaryBundleVersion } else { "Not in Intune" }
+                Type = $_.'@odata.type'
+            }
+        })
+
+        Write-Host "Returning $($result.Count) processed apps" -ForegroundColor Green
+        return $result
     }
+    else {
+        # Original behavior for CLI mode
+        $intuneApps = @()
 
-    return $intuneApps
+        foreach ($jsonUrl in $githubJsonUrls) {
+            # Check if the URL is valid
+            if (-not (Is-ValidUrl $jsonUrl)) {
+                continue
+            }
+
+            # Fetch GitHub app info
+            $appInfo = Get-GitHubAppInfo $jsonUrl
+            if ($appInfo -eq $null) {
+                Write-Host "Failed to fetch app info for $jsonUrl. Skipping." -ForegroundColor Yellow
+                continue
+            }
+
+            $appName = $appInfo.name
+
+            # Fetch Intune app info
+            $intuneQueryUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$filter=(isof('microsoft.graph.macOSDmgApp') or isof('microsoft.graph.macOSPkgApp')) and displayName eq '$appName'"
+
+            try {
+                $response = Invoke-MgGraphRequest -Uri $intuneQueryUri -Method Get
+                if ($response.value.Count -gt 0) {
+                    $intuneApp = $response.value[0]
+                    $intuneApps += [PSCustomObject]@{
+                        Name          = $intuneApp.displayName
+                        IntuneVersion = $intuneApp.primaryBundleVersion
+                        GitHubVersion = $appInfo.version
+                    }
+                }
+                else {
+                    $intuneApps += [PSCustomObject]@{
+                        Name          = $appName
+                        IntuneVersion = 'Not in Intune'
+                        GitHubVersion = $appInfo.version
+                    }
+                }
+            }
+            catch {
+                Write-Host "Error fetching Intune app info for '$appName': $_"
+            }
+        }
+
+        return $intuneApps
+    }
 }
 
 # Compares version strings accounting for build numbers
@@ -572,64 +699,6 @@ function Add-IntuneAppLogo {
     catch {
         Write-Host "⚠️ Warning: Could not add app logo. Error: $_" -ForegroundColor Yellow
     }
-}
-
-# Retrieve Intune app versions
-Write-Host "Fetching current Intune app versions..."
-$intuneAppVersions = Get-IntuneApps
-Write-Host ""
-
-# Prepare table data
-$tableData = @()
-foreach ($app in $intuneAppVersions) {
-    if ($app.IntuneVersion -eq 'Not in Intune') {
-        $status = "Not in Intune"
-        $statusColor = "Red"
-    }
-    elseif (Is-NewerVersion $app.GitHubVersion $app.IntuneVersion) {
-        $status = "Update Available"
-        $statusColor = "Yellow"
-    }
-    else {
-        $status = "Up-to-date"
-        $statusColor = "Green"
-    }
-
-    $tableData += [PSCustomObject]@{
-        "App Name"       = $app.Name
-        "Latest Version" = $app.GitHubVersion
-        "Intune Version" = $app.IntuneVersion
-        "Status"         = $status
-        "StatusColor"    = $statusColor
-    }
-}
-
-# Function to write colored table
-function Write-ColoredTable {
-    param (
-        $TableData
-    )
-
-    $lineSeparator = "+----------------------------+----------------------+----------------------+-----------------+"
-
-    Write-Host $lineSeparator
-    Write-Host ("| {0,-26} | {1,-20} | {2,-20} | {3,-15} |" -f "App Name", "Latest Version", "Intune Version", "Status") -ForegroundColor Cyan
-    Write-Host $lineSeparator
-
-    foreach ($row in $TableData) {
-        $color = $row.StatusColor
-        Write-Host ("| {0,-26} | {1,-20} | {2,-20} | {3,-15} |" -f $row.'App Name', $row.'Latest Version', $row.'Intune Version', $row.Status) -ForegroundColor $color
-        Write-Host $lineSeparator
-    }
-}
-
-# Display the colored table with lines
-Write-ColoredTable $tableData
-
-# In GUI mode, stop here after displaying the status
-if ($GUI) {
-    Write-Host "`nStatus table displayed. GUI will handle further interactions." -ForegroundColor Green
-    exit 0
 }
 
 # Filter apps that need to be uploaded
