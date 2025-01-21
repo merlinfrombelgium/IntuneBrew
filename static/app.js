@@ -11,19 +11,23 @@ function App() {
             const data = await response.json();
             const statuses = {};
             
-            data.forEach(app => {
-                const status = app.IntuneVersion === 'Not in Intune' ? 'Not in Intune' :
-                             app.GitHubVersion > app.IntuneVersion ? 'Update Available' :
-                             'Up-to-date';
-                const color = status === 'Not in Intune' ? 'red' :
-                            status === 'Update Available' ? 'yellow' :
-                            'green';
-                statuses[app.Name.toLowerCase().replace(/\s+/g, '_')] = {
-                    status,
-                    color,
-                    intuneVersion: app.IntuneVersion
-                };
-            });
+            if (Array.isArray(data)) {
+                data.forEach(app => {
+                    if (app && app.Name) {
+                        const status = app.IntuneVersion === 'Not in Intune' ? 'Not in Intune' :
+                                     app.GitHubVersion > app.IntuneVersion ? 'Update Available' :
+                                     'Up-to-date';
+                        const color = status === 'Not in Intune' ? 'red' :
+                                    status === 'Update Available' ? 'yellow' :
+                                    'green';
+                        statuses[app.Name.toLowerCase().replace(/\s+/g, '_')] = {
+                            status,
+                            color,
+                            intuneVersion: app.IntuneVersion
+                        };
+                    }
+                });
+            }
             
             setAppStatuses(statuses);
         } catch (error) {

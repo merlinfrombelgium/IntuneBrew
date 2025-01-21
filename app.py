@@ -32,11 +32,13 @@ def get_intune_status():
         logger.debug(f'Executing command: {ps_cmd}')
         ps_output = subprocess.check_output(ps_cmd, shell=True).decode()
         data = json.loads(ps_output)
+        if not isinstance(data, list):
+            data = [data] if data else []
         logger.debug(f'Retrieved status for {len(data)} apps')
         return jsonify(data)
     except Exception as e:
         logger.error(f'Error getting Intune status: {str(e)}')
-        return jsonify({'error': str(e)}), 500
+        return jsonify([]), 200  # Return empty array instead of error
 
 @app.route('/api/app/<app_id>')
 def get_app_details(app_id):
