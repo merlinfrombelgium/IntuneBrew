@@ -67,9 +67,9 @@ $requiredPermissions = @(
 if (-not $appid -or $appid -eq '<YourAppIdHere>' -or
     -not $tenantid -or $tenantid -eq '<YourTenantIdHere>' -or
     -not $certThumbprint -or $certThumbprint -eq '<YourCertificateThumbprintHere>') {
-    
+
     Write-Host "App ID, Tenant ID, or Certificate Thumbprint is missing or not set correctly." -ForegroundColor Red
-    
+
     # Fallback to interactive sign-in if certificate-based authentication details are not provided
     $manualConnection = Read-Host "Would you like to attempt a manual interactive connection? (y/n)"
     if ($manualConnection -eq 'y') {
@@ -119,7 +119,7 @@ Write-Host "All required permissions are present." -ForegroundColor Green
 # Start Web Server for GUI if -GUI is specified
 if ($GUI) {
     Write-Host "Checking requirements for GUI mode..." -ForegroundColor Yellow
-    
+
     # Check if Python3 is installed
     try {
         $pythonVersion = python3 --version 2>&1
@@ -156,14 +156,14 @@ if ($GUI) {
     }
 
     Write-Host "Starting web server..." -ForegroundColor Yellow
-    
+
     # Get the script directory path
     $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
     Set-Location -Path $scriptPath
 
     # Start the Flask app
     Start-Process pwsh -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'python3 app.py' -WindowStyle Hidden
-    
+
     Write-Host "Access the web app at http://127.0.0.1:3000" -ForegroundColor Cyan
     Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Yellow
     #Start-Sleep -Seconds 2
@@ -193,7 +193,7 @@ try {
         }
         Write-Host "`nEnter app names separated by commas (or 'all' for all apps):"
         $selectedApps = Read-Host
-    
+
         if ($selectedApps.Trim().ToLower() -eq 'all') {
             $githubJsonUrls = $supportedApps.PSObject.Properties.Value
         }
@@ -208,7 +208,7 @@ try {
                 }
             }
         }
-    
+
         if ($githubJsonUrls.Count -eq 0) {
             Write-Host "No valid applications selected. Exiting..." -ForegroundColor Red
             exit
@@ -259,7 +259,7 @@ function Get-GitHubAppInfo {
 # Downloads app installer file with progress indication
 function Download-AppFile($url, $fileName) {
     $outputPath = Join-Path $PWD $fileName
-    
+
     # Get file size before downloading
     try {
         $response = Invoke-WebRequest -Uri $url -Method Head
@@ -269,7 +269,7 @@ function Download-AppFile($url, $fileName) {
     catch {
         Write-Host "Downloading the app file to $outputPath..."
     }
-    
+
     $ProgressPreference = 'SilentlyContinue'
     Invoke-WebRequest -Uri $url -OutFile $outputPath
     return $outputPath
@@ -328,7 +328,7 @@ function UploadFileToAzureStorage($sasUri, $filepath) {
     $blockSize = 4 * 1024 * 1024 # 4 MiB
     $fileSize = (Get-Item $filepath).Length
     $totalBlocks = [Math]::Ceiling($fileSize / $blockSize)
-    
+
     $maxRetries = 3
     $retryCount = 0
     $uploadSuccess = $false
@@ -344,7 +344,7 @@ function UploadFileToAzureStorage($sasUri, $filepath) {
             Write-Host "Total size: $([Math]::Round($fileSize / 1MB, 2)) MB"
             Write-Host "Block size: $($blockSize / 1MB) MB"
             Write-Host ""
-            
+
             while ($bytesRead = $fileStream.Read($blockBuffer, 0, $blockSize)) {
                 $id = [System.Convert]::ToBase64String([System.BitConverter]::GetBytes([int]$blockId))
                 $blockList.Root.Add([System.Xml.Linq.XElement]::new("Latest", $id))
@@ -377,14 +377,14 @@ function UploadFileToAzureStorage($sasUri, $filepath) {
                     [Math]::Round($fileSize / 1MB, 1)
                 )
                 $totalMB = [Math]::Round($fileSize / 1MB, 1)
-                
+
                 Write-Host "`rProgress: [$($percentComplete)%] $uploadedMB MB / $totalMB MB" -NoNewline
-                
+
                 $blockId++
             }
-            
+
             Write-Host ""
-            
+
             $fileStream.Close()
 
             Invoke-RestMethod -Method Put "$sasUri&comp=blocklist" -Body $blockList | Out-Null
@@ -395,7 +395,7 @@ function UploadFileToAzureStorage($sasUri, $filepath) {
             if ($retryCount -lt $maxRetries) {
                 Write-Host "`nUpload failed. Retrying in 5 seconds..." -ForegroundColor Yellow
                 Start-Sleep -Seconds 5
-                
+
                 # Request a new SAS token
                 Write-Host "Requesting new upload URL..." -ForegroundColor Yellow
                 $newFileStatus = Invoke-MgGraphRequest -Method GET -Uri $fileStatusUri
@@ -528,7 +528,7 @@ function Add-IntuneAppLogo {
     )
 
     Write-Host "`n🖼️  Adding app logo..." -ForegroundColor Yellow
-    
+
     try {
         # Construct the logo URL - only replace spaces with underscores
         $logoFileName = $appName.ToLower().Replace(" ", "_") + ".png"
@@ -608,7 +608,7 @@ function Write-ColoredTable {
     )
 
     $lineSeparator = "+----------------------------+----------------------+----------------------+-----------------+"
-    
+
     Write-Host $lineSeparator
     Write-Host ("| {0,-26} | {1,-20} | {2,-20} | {3,-15} |" -f "App Name", "Latest Version", "Intune Version", "Status") -ForegroundColor Cyan
     Write-Host $lineSeparator
@@ -854,7 +854,7 @@ foreach ($jsonUrl in $githubJsonUrls) {
         $maxAttempts = 3
         $attempt = 0
         $success = $false
-        
+
         while (-not $success -and $attempt -lt $maxAttempts) {
             try {
                 [System.GC]::Collect()
@@ -886,3 +886,82 @@ Write-Host "`n🎉 All operations completed successfully!" -ForegroundColor Gree
 Disconnect-MgGraph > $null 2>&1
 Write-Host "Disconnected from Microsoft Graph." -ForegroundColor Green
 
+
+# Start Web Server for GUI if -GUI is specified
+if ($GUI) {
+    Write-Host "Checking requirements for GUI mode..." -ForegroundColor Yellow
+
+    # Check if Python3 is installed
+    try {
+        $pythonVersion = python3 --version 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ Python3 is not installed. Please install Python3 to use GUI mode." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "✅ Python3 detected: $pythonVersion" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "❌ Python3 is not installed. Please install Python3 to use GUI mode." -ForegroundColor Red
+        exit 1
+    }
+
+    # Check if Flask is installed
+    try {
+        $flaskCheck = python3 -c "import flask" 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ Flask module not found. Installing Flask..." -ForegroundColor Yellow
+            $installResult = python3 -m pip install flask 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "❌ Failed to install Flask. Error: $installResult" -ForegroundColor Red
+                exit 1
+            }
+            Write-Host "✅ Flask installed successfully" -ForegroundColor Green
+        }
+        else {
+            Write-Host "✅ Flask module detected" -ForegroundColor Green
+        }
+    }
+    catch {
+        Write-Host "❌ Error checking Flask installation: $_" -ForegroundColor Red
+        exit 1
+    }
+
+    # Check if UV is installed
+    try {
+        $uvCheck = Get-Command uv -ErrorAction SilentlyContinue
+        if (-not $uvCheck) {
+            Write-Host "❌ UV not found. Installing UV..." -ForegroundColor Yellow
+
+            # Check if running on Windows
+            if ($IsWindows) {
+                winget install astral-sh.uv
+            } else {
+                curl -LsSf https://astral.sh/uv/install.sh | sh
+            }
+
+            Write-Host "✅ UV installed successfully" -ForegroundColor Green
+        }
+        else {
+            Write-Host "✅ UV detected" -ForegroundColor Green
+        }
+    }
+    catch {
+        Write-Host "❌ Error checking UV installation: $_" -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "Starting web server..." -ForegroundColor Yellow
+
+    # Get the script directory path
+    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+    Set-Location -Path $scriptPath
+
+    # Start the Flask app
+    Start-Process pwsh -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'python3 app.py' -WindowStyle Hidden
+
+    Write-Host "Access the web app at http://127.0.0.1:3000" -ForegroundColor Cyan
+    Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Yellow
+    #Start-Sleep -Seconds 2
+}
+
+# Authentication END
