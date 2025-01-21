@@ -1,5 +1,5 @@
 
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_from_directory
 import json
 import subprocess
 import os
@@ -20,6 +20,10 @@ def get_app_details(app_id):
             app_details = json.load(f)
         return jsonify(app_details)
     return jsonify({'error': 'App not found'}), 404
+
+@app.route('/Logos/<path:filename>')
+def serve_logo(filename):
+    return send_from_directory('Logos', filename)
 
 @app.route('/')
 def index():
