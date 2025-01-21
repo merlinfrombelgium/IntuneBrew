@@ -1,8 +1,11 @@
-
 {
     "azure": {
         "appId": "<your-app-id-here>",
         "tenantId": "<your-tenant-id-here>",
         "certThumbprint": "<your-certificate-thumbprint-here>"
+    },
+    "webserver": {
+        "host": "0.0.0.0",
+        "port": 5000
     }
 }

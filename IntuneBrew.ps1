@@ -148,10 +148,28 @@ if ($GUI) {
             Write-Host "✅ UV detected" -ForegroundColor Green
         }
 
+        # Verify virtual environment and packages
+        Write-Host "Verifying Python virtual environment..." -ForegroundColor Yellow
+        $venvPath = Join-Path $PWD ".venv"
+        if (-not (Test-Path $venvPath)) {
+            Write-Host "Creating virtual environment..." -ForegroundColor Yellow
+            uv venv
+            Write-Host "✅ Virtual environment created" -ForegroundColor Green
+        }
+
         # Install required Python packages using UV
-        Write-Host "Installing required Python packages..." -ForegroundColor Yellow
-        uv pip install flask flask-cors
-        Write-Host "✅ Python packages installed successfully" -ForegroundColor Green
+        Write-Host "Verifying required Python packages..." -ForegroundColor Yellow
+        $venvPython = Join-Path $venvPath "Scripts" "python.exe"
+        $pipList = & $venvPython -m pip list
+        $needsPackages = -not ($pipList -match "flask" -and $pipList -match "flask-cors")
+        
+        if ($needsPackages) {
+            Write-Host "Installing required Python packages..." -ForegroundColor Yellow
+            uv pip install flask flask-cors
+            Write-Host "✅ Python packages installed successfully" -ForegroundColor Green
+        } else {
+            Write-Host "✅ Required packages already installed" -ForegroundColor Green
+        }
     }
     catch {
         Write-Host "❌ Error installing dependencies: $_" -ForegroundColor Red
@@ -164,18 +182,69 @@ if ($GUI) {
     $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
     Set-Location -Path $scriptPath
 
-    # Start the Flask app
-    Start-Process pwsh -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'python3 app.py' -WindowStyle Hidden
+    # Read Flask app configuration
+    try {
+        $config = Get-Content "config.json" -Raw | ConvertFrom-Json
+        $flaskPort = $config.webserver.port
+    } catch {
+        $flaskPort = "3000"  # Default fallback
+    }
 
-    Write-Host "Access the web app at http://127.0.0.1:3000" -ForegroundColor Cyan
+    # Start the Flask app using the virtual environment's Python directly
+    $venvPath = Join-Path $scriptPath ".venv"
+    $venvPython = Join-Path $venvPath "Scripts" "python.exe"
+    
+    if (-not (Test-Path $venvPython)) {
+        Write-Host "❌ Virtual environment Python not found at $venvPython" -ForegroundColor Red
+        exit 1
+    }
+
+    # Start Flask app directly with pwsh
+    $pwshPath = (Get-Command pwsh).Source
+    $flaskProcess = Start-Process -FilePath $pwshPath -ArgumentList "-NoProfile", "-Command", "& '$venvPython' 'app.py'" -WindowStyle Hidden -PassThru
+
+    # Give the server a moment to start
+    Start-Sleep -Seconds 2
+
+    # Check if process is still running
+    if ($flaskProcess.HasExited) {
+        Write-Host "❌ Flask server failed to start" -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "✅ Web server started successfully" -ForegroundColor Green
+    Write-Host "Access the web app at http://127.0.0.1:$flaskPort" -ForegroundColor Cyan
     Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Yellow
-    #Start-Sleep -Seconds 2
+
+    try {
+        while ($true) {
+            if ($flaskProcess.HasExited) {
+                Write-Host "Flask server stopped unexpectedly" -ForegroundColor Red
+                break
+            }
+            Start-Sleep -Seconds 1
+        }
+    }
+    catch [System.Management.Automation.PipelineStoppedException] {
+        Write-Host "`nStopping server..." -ForegroundColor Yellow
+    }
+    finally {
+        if (-not $flaskProcess.HasExited) {
+            Stop-Process -Id $flaskProcess.Id -Force
+        }
+        Disconnect-MgGraph > $null 2>&1
+        Write-Host "Disconnected from Microsoft Graph." -ForegroundColor Green
+    }
+    exit 0
 }
 
 # Authentication END
 
 # Import required modules
 Import-Module Microsoft.Graph.Authentication
+
+# Source the functions
+. (Join-Path $PSScriptRoot "functions.ps1")
 
 # Fetch supported apps from GitHub repository
 $supportedAppsUrl = "https://raw.githubusercontent.com/ugurkocde/IntuneBrew/refs/heads/main/supported_apps.json"
@@ -225,353 +294,6 @@ try {
 catch {
     Write-Host "Error fetching supported apps list: $_" -ForegroundColor Red
     exit
-}
-
-# Core Functions
-
-# Fetches app information from GitHub JSON file
-function Get-GitHubAppInfo {
-    param(
-        [string]$jsonUrl
-    )
-
-    if ([string]::IsNullOrEmpty($jsonUrl)) {
-        Write-Host "Error: Empty or null JSON URL provided." -ForegroundColor Red
-        return $null
-    }
-
-    try {
-        $response = Invoke-RestMethod -Uri $jsonUrl -Method Get
-        return @{
-            name        = $response.name
-            description = $response.description
-            version     = $response.version
-            url         = $response.url
-            bundleId    = $response.bundleId
-            homepage    = $response.homepage
-            fileName    = $response.fileName
-        }
-    }
-    catch {
-        Write-Host "Error fetching app info from GitHub URL: $jsonUrl" -ForegroundColor Red
-        Write-Host "Error details: $_" -ForegroundColor Red
-        return $null
-    }
-}
-
-# Downloads app installer file with progress indication
-function Download-AppFile($url, $fileName) {
-    $outputPath = Join-Path $PWD $fileName
-
-    # Get file size before downloading
-    try {
-        $response = Invoke-WebRequest -Uri $url -Method Head
-        $fileSize = [math]::Round(($response.Headers.'Content-Length' / 1MB), 2)
-        Write-Host "Downloading the app file ($fileSize MB) to $outputPath..."
-    }
-    catch {
-        Write-Host "Downloading the app file to $outputPath..."
-    }
-
-    $ProgressPreference = 'SilentlyContinue'
-    Invoke-WebRequest -Uri $url -OutFile $outputPath
-    return $outputPath
-}
-
-# Encrypts app file using AES encryption for Intune upload
-function EncryptFile($sourceFile) {
-    function GenerateKey() {
-        $aesSp = [System.Security.Cryptography.AesCryptoServiceProvider]::new()
-        $aesSp.GenerateKey()
-        return $aesSp.Key
-    }
-
-    $targetFile = "$sourceFile.bin"
-    $sha256 = [System.Security.Cryptography.SHA256]::Create()
-    $aes = [System.Security.Cryptography.Aes]::Create()
-    $aes.Key = GenerateKey
-    $hmac = [System.Security.Cryptography.HMACSHA256]::new()
-    $hmac.Key = GenerateKey
-    $hashLength = $hmac.HashSize / 8
-
-    $sourceStream = [System.IO.File]::OpenRead($sourceFile)
-    $sourceSha256 = $sha256.ComputeHash($sourceStream)
-    $sourceStream.Seek(0, "Begin") | Out-Null
-    $targetStream = [System.IO.File]::Open($targetFile, "Create")
-
-    $targetStream.Write((New-Object byte[] $hashLength), 0, $hashLength)
-    $targetStream.Write($aes.IV, 0, $aes.IV.Length)
-    $transform = $aes.CreateEncryptor()
-    $cryptoStream = [System.Security.Cryptography.CryptoStream]::new($targetStream, $transform, "Write")
-    $sourceStream.CopyTo($cryptoStream)
-    $cryptoStream.FlushFinalBlock()
-
-    $targetStream.Seek($hashLength, "Begin") | Out-Null
-    $mac = $hmac.ComputeHash($targetStream)
-    $targetStream.Seek(0, "Begin") | Out-Null
-    $targetStream.Write($mac, 0, $mac.Length)
-
-    $targetStream.Close()
-    $cryptoStream.Close()
-    $sourceStream.Close()
-
-    return [PSCustomObject][ordered]@{
-        encryptionKey        = [System.Convert]::ToBase64String($aes.Key)
-        fileDigest           = [System.Convert]::ToBase64String($sourceSha256)
-        fileDigestAlgorithm  = "SHA256"
-        initializationVector = [System.Convert]::ToBase64String($aes.IV)
-        mac                  = [System.Convert]::ToBase64String($mac)
-        macKey               = [System.Convert]::ToBase64String($hmac.Key)
-        profileIdentifier    = "ProfileVersion1"
-    }
-}
-
-# Handles chunked upload of large files to Azure Storage
-function UploadFileToAzureStorage($sasUri, $filepath) {
-    $blockSize = 4 * 1024 * 1024 # 4 MiB
-    $fileSize = (Get-Item $filepath).Length
-    $totalBlocks = [Math]::Ceiling($fileSize / $blockSize)
-
-    $maxRetries = 3
-    $retryCount = 0
-    $uploadSuccess = $false
-
-    while (-not $uploadSuccess -and $retryCount -lt $maxRetries) {
-        try {
-            $fileStream = [System.IO.File]::OpenRead($filepath)
-            $blockId = 0
-            $blockList = [System.Xml.Linq.XDocument]::Parse('<?xml version="1.0" encoding="utf-8"?><BlockList />')
-            $blockBuffer = [byte[]]::new($blockSize)
-
-            Write-Host "`nUploading file to Azure Storage (Attempt $($retryCount + 1) of $maxRetries):"
-            Write-Host "Total size: $([Math]::Round($fileSize / 1MB, 2)) MB"
-            Write-Host "Block size: $($blockSize / 1MB) MB"
-            Write-Host ""
-
-            while ($bytesRead = $fileStream.Read($blockBuffer, 0, $blockSize)) {
-                $id = [System.Convert]::ToBase64String([System.BitConverter]::GetBytes([int]$blockId))
-                $blockList.Root.Add([System.Xml.Linq.XElement]::new("Latest", $id))
-
-                $uploadBlockSuccess = $false
-                $blockRetries = 3
-                while (-not $uploadBlockSuccess -and $blockRetries -gt 0) {
-                    try {
-                        Invoke-WebRequest -Method Put "$sasUri&comp=block&blockid=$id" `
-                            -Headers @{"x-ms-blob-type" = "BlockBlob" } `
-                            -Body ([byte[]]($blockBuffer[0..$($bytesRead - 1)])) `
-                            -ErrorAction Stop | Out-Null
-                        $uploadBlockSuccess = $true
-                    }
-                    catch {
-                        $blockRetries--
-                        if ($blockRetries -gt 0) {
-                            Write-Host "Retrying block upload..." -ForegroundColor Yellow
-                            Start-Sleep -Seconds 2
-                        }
-                        else {
-                            throw
-                        }
-                    }
-                }
-
-                $percentComplete = [Math]::Round(($blockId + 1) / $totalBlocks * 100, 1)
-                $uploadedMB = [Math]::Min(
-                    [Math]::Round(($blockId + 1) * $blockSize / 1MB, 1),
-                    [Math]::Round($fileSize / 1MB, 1)
-                )
-                $totalMB = [Math]::Round($fileSize / 1MB, 1)
-
-                Write-Host "`rProgress: [$($percentComplete)%] $uploadedMB MB / $totalMB MB" -NoNewline
-
-                $blockId++
-            }
-
-            Write-Host ""
-
-            $fileStream.Close()
-
-            Invoke-RestMethod -Method Put "$sasUri&comp=blocklist" -Body $blockList | Out-Null
-            $uploadSuccess = $true
-        }
-        catch {
-            $retryCount++
-            if ($retryCount -lt $maxRetries) {
-                Write-Host "`nUpload failed. Retrying in 5 seconds..." -ForegroundColor Yellow
-                Start-Sleep -Seconds 5
-
-                # Request a new SAS token
-                Write-Host "Requesting new upload URL..." -ForegroundColor Yellow
-                $newFileStatus = Invoke-MgGraphRequest -Method GET -Uri $fileStatusUri
-                if ($newFileStatus.azureStorageUri) {
-                    $sasUri = $newFileStatus.azureStorageUri
-                    Write-Host "Received new upload URL" -ForegroundColor Green
-                }
-            }
-            else {
-                Write-Host "`nFailed to upload file after $maxRetries attempts." -ForegroundColor Red
-                Write-Host "Error: $_" -ForegroundColor Red
-                throw
-            }
-        }
-        finally {
-            if ($fileStream) {
-                $fileStream.Close()
-            }
-        }
-    }
-}
-
-# Validates GitHub URL format for security
-function Is-ValidUrl {
-    param (
-        [string]$url
-    )
-
-    if ($url -match "^https://raw.githubusercontent.com/ugurkocde/IntuneBrew/main/Apps/.*\.json$") {
-        return $true
-    }
-    else {
-        Write-Host "Invalid URL format: $url" -ForegroundColor Red
-        return $false
-    }
-}
-
-# Retrieves and compares app versions between Intune and GitHub
-function Get-IntuneApps {
-    $intuneApps = @()
-
-    foreach ($jsonUrl in $githubJsonUrls) {
-        # Check if the URL is valid
-        if (-not (Is-ValidUrl $jsonUrl)) {
-            continue
-        }
-
-        # Fetch GitHub app info
-        $appInfo = Get-GitHubAppInfo $jsonUrl
-        if ($appInfo -eq $null) {
-            Write-Host "Failed to fetch app info for $jsonUrl. Skipping." -ForegroundColor Yellow
-            continue
-        }
-
-        $appName = $appInfo.name
-
-        # Fetch Intune app info
-        $intuneQueryUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$filter=(isof('microsoft.graph.macOSDmgApp') or isof('microsoft.graph.macOSPkgApp')) and displayName eq '$appName'"
-
-        try {
-            $response = Invoke-MgGraphRequest -Uri $intuneQueryUri -Method Get
-            if ($response.value.Count -gt 0) {
-                $intuneApp = $response.value[0]
-                $intuneApps += [PSCustomObject]@{
-                    Name          = $intuneApp.displayName
-                    IntuneVersion = $intuneApp.primaryBundleVersion
-                    GitHubVersion = $appInfo.version
-                }
-            }
-            else {
-                $intuneApps += [PSCustomObject]@{
-                    Name          = $appName
-                    IntuneVersion = 'Not in Intune'
-                    GitHubVersion = $appInfo.version
-                }
-            }
-        }
-        catch {
-            Write-Host "Error fetching Intune app info for '$appName': $_"
-        }
-    }
-
-    return $intuneApps
-}
-
-# Compares version strings accounting for build numbers
-function Is-NewerVersion($githubVersion, $intuneVersion) {
-    if ($intuneVersion -eq 'Not in Intune') {
-        return $true
-    }
-
-    try {
-        # Remove hyphens and everything after them for comparison
-        $ghVersion = $githubVersion -replace '-.*$'
-        $itVersion = $intuneVersion -replace '-.*$'
-
-        # Handle versions with commas (e.g., "3.5.1,16101")
-        $ghVersionParts = $ghVersion -split ','
-        $itVersionParts = $itVersion -split ','
-
-        # Compare main version numbers first
-        $ghMainVersion = [Version]($ghVersionParts[0])
-        $itMainVersion = [Version]($itVersionParts[0])
-
-        if ($ghMainVersion -ne $itMainVersion) {
-            return ($ghMainVersion -gt $itMainVersion)
-        }
-
-        # If main versions are equal and there are build numbers
-        if ($ghVersionParts.Length -gt 1 -and $itVersionParts.Length -gt 1) {
-            $ghBuild = [int]$ghVersionParts[1]
-            $itBuild = [int]$itVersionParts[1]
-            return $ghBuild -gt $itBuild
-        }
-
-        # If versions are exactly equal
-        return $githubVersion -ne $intuneVersion
-    }
-    catch {
-        Write-Host "Version comparison failed: GitHubVersion='$githubVersion', IntuneVersion='$intuneVersion'. Assuming versions are equal." -ForegroundColor Yellow
-        return $false
-    }
-}
-
-# Downloads and adds app logo to Intune app entry
-function Add-IntuneAppLogo {
-    param (
-        [string]$appId,
-        [string]$appName
-    )
-
-    Write-Host "`n🖼️  Adding app logo..." -ForegroundColor Yellow
-
-    try {
-        # Construct the logo URL - only replace spaces with underscores
-        $logoFileName = $appName.ToLower().Replace(" ", "_") + ".png"
-        $logoUrl = "https://raw.githubusercontent.com/ugurkocde/IntuneBrew/main/Logos/$logoFileName"
-
-        # For debugging
-        Write-Host "Downloading logo from: $logoUrl" -ForegroundColor Gray
-
-        # Download the logo
-        $tempLogoPath = Join-Path $PWD "temp_logo.png"
-        Invoke-WebRequest -Uri $logoUrl -OutFile $tempLogoPath
-
-        # Convert the logo to base64
-        $logoContent = [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($tempLogoPath))
-
-        # Prepare the request body
-        $logoBody = @{
-            "@odata.type" = "#microsoft.graph.mimeContent"
-            "type"        = "image/png"
-            "value"       = $logoContent
-        }
-
-        # Update the app with the logo
-        $logoUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$appId"
-        $updateBody = @{
-            "@odata.type" = "#microsoft.graph.$appType"
-            "largeIcon"   = $logoBody
-        }
-
-        Invoke-MgGraphRequest -Method PATCH -Uri $logoUri -Body ($updateBody | ConvertTo-Json -Depth 10)
-        Write-Host "✅ Logo added successfully" -ForegroundColor Green
-
-        # Cleanup
-        if (Test-Path $tempLogoPath) {
-            Remove-Item $tempLogoPath -Force
-        }
-    }
-    catch {
-        Write-Host "⚠️ Warning: Could not add app logo. Error: $_" -ForegroundColor Yellow
-    }
 }
 
 # Retrieve Intune app versions
