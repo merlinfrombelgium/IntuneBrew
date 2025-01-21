@@ -214,6 +214,10 @@ try {
             exit
         }
     }
+    else {
+        # In GUI mode, just load all apps for the web interface to handle
+        $githubJsonUrls = $supportedApps.PSObject.Properties.Value
+    }
 }
 catch {
     Write-Host "Error fetching supported apps list: $_" -ForegroundColor Red
@@ -666,13 +670,15 @@ else {
     $message = "`nFound $($statusParts -join ' and '). Do you want to continue? (y/n)"
 }
 
-# Prompt user to continue
-$continue = Read-Host -Prompt $message
-if ($continue -ne "y") {
-    Write-Host "Operation cancelled by user." -ForegroundColor Yellow
-    Disconnect-MgGraph > $null 2>&1
-    Write-Host "Disconnected from Microsoft Graph." -ForegroundColor Green
-    exit 0
+# Prompt user to continue only in non-GUI mode
+if (-not $GUI) {
+    $continue = Read-Host -Prompt $message
+    if ($continue -ne "y") {
+        Write-Host "Operation cancelled by user." -ForegroundColor Yellow
+        Disconnect-MgGraph > $null 2>&1
+        Write-Host "Disconnected from Microsoft Graph." -ForegroundColor Green
+        exit 0
+    }
 }
 
 # Main script for uploading only newer apps
