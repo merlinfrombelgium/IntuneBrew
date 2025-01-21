@@ -110,6 +110,43 @@ Write-Host "All required permissions are present." -ForegroundColor Green
 
 # Start Web Server for GUI if -GUI is specified
 if ($GUI) {
+    Write-Host "Checking requirements for GUI mode..." -ForegroundColor Yellow
+    
+    # Check if Python3 is installed
+    try {
+        $pythonVersion = python3 --version 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ Python3 is not installed. Please install Python3 to use GUI mode." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "✅ Python3 detected: $pythonVersion" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "❌ Python3 is not installed. Please install Python3 to use GUI mode." -ForegroundColor Red
+        exit 1
+    }
+
+    # Check if Flask is installed
+    try {
+        $flaskCheck = python3 -c "import flask" 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ Flask module not found. Installing Flask..." -ForegroundColor Yellow
+            $installResult = python3 -m pip install flask 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "❌ Failed to install Flask. Error: $installResult" -ForegroundColor Red
+                exit 1
+            }
+            Write-Host "✅ Flask installed successfully" -ForegroundColor Green
+        }
+        else {
+            Write-Host "✅ Flask module detected" -ForegroundColor Green
+        }
+    }
+    catch {
+        Write-Host "❌ Error checking Flask installation: $_" -ForegroundColor Red
+        exit 1
+    }
+
     Write-Host "Starting web server..." -ForegroundColor Yellow
     
     # Get the script directory path
