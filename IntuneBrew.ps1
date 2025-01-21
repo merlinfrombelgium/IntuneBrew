@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     IntuneBrew - Automated Intune app deployment using Homebrew cask information.
 
@@ -19,7 +19,12 @@
 
 .EXAMPLE
     .\IntuneBrew.ps1
+    .\IntuneBrew.ps1 -GUI
 #>
+
+param (
+    [switch]$GUI
+)
 
 Write-Host "
 ___       _                    ____                    
@@ -103,7 +108,23 @@ if ($missingPermissions.Count -gt 0) {
 
 Write-Host "All required permissions are present." -ForegroundColor Green
 
-# Auhentication END
+# Start Web Server for GUI if -GUI is specified
+if ($GUI) {
+    Write-Host "Starting web server..." -ForegroundColor Yellow
+    
+    # Get the script directory path
+    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+    Set-Location -Path $scriptPath
+
+    # Start the Flask app
+    Start-Process pwsh -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'python3 app.py' -WindowStyle Hidden
+    
+    Write-Host "Access the web app at http://0.0.0.0:3000" -ForegroundColor Cyan
+    Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Yellow
+    Start-Sleep -Seconds 2
+}
+
+# Authentication END
 
 # Import required modules
 Import-Module Microsoft.Graph.Authentication
