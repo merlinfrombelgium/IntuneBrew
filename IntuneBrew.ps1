@@ -156,9 +156,9 @@ if ($GUI) {
     # Start the Flask app
     Start-Process pwsh -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'python3 app.py' -WindowStyle Hidden
     
-    Write-Host "Access the web app at http://0.0.0.0:3000" -ForegroundColor Cyan
+    Write-Host "Access the web app at http://127.0.0.1:3000" -ForegroundColor Cyan
     Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Yellow
-    Start-Sleep -Seconds 2
+    #Start-Sleep -Seconds 2
 }
 
 # Authentication END
@@ -174,35 +174,37 @@ try {
     # Fetch the supported apps JSON
     $supportedApps = Invoke-RestMethod -Uri $supportedAppsUrl -Method Get
 
-    # Allow user to select which apps to process
-    Write-Host "`nAvailable applications:" -ForegroundColor Cyan
-    # Add Sort-Object to sort the app names alphabetically
-    $supportedApps.PSObject.Properties | 
-    Sort-Object Name | 
-    ForEach-Object { 
-        Write-Host "  - $($_.Name)" 
-    }
-    Write-Host "`nEnter app names separated by commas (or 'all' for all apps):"
-    $selectedApps = Read-Host
-
-    if ($selectedApps.Trim().ToLower() -eq 'all') {
-        $githubJsonUrls = $supportedApps.PSObject.Properties.Value
-    }
-    else {
-        $selectedAppsList = $selectedApps.Split(',') | ForEach-Object { $_.Trim().ToLower() }
-        foreach ($app in $selectedAppsList) {
-            if ($supportedApps.PSObject.Properties.Name -contains $app) {
-                $githubJsonUrls += $supportedApps.$app
-            }
-            else {
-                Write-Host "Warning: '$app' is not a supported application" -ForegroundColor Yellow
+    if (-not $GUI) {
+        # Allow user to select which apps to process
+        Write-Host "`nAvailable applications:" -ForegroundColor Cyan
+        # Add Sort-Object to sort the app names alphabetically
+        $supportedApps.PSObject.Properties | 
+        Sort-Object Name | 
+        ForEach-Object { 
+            Write-Host "  - $($_.Name)" 
+        }
+        Write-Host "`nEnter app names separated by commas (or 'all' for all apps):"
+        $selectedApps = Read-Host
+    
+        if ($selectedApps.Trim().ToLower() -eq 'all') {
+            $githubJsonUrls = $supportedApps.PSObject.Properties.Value
+        }
+        else {
+            $selectedAppsList = $selectedApps.Split(',') | ForEach-Object { $_.Trim().ToLower() }
+            foreach ($app in $selectedAppsList) {
+                if ($supportedApps.PSObject.Properties.Name -contains $app) {
+                    $githubJsonUrls += $supportedApps.$app
+                }
+                else {
+                    Write-Host "Warning: '$app' is not a supported application" -ForegroundColor Yellow
+                }
             }
         }
-    }
-
-    if ($githubJsonUrls.Count -eq 0) {
-        Write-Host "No valid applications selected. Exiting..." -ForegroundColor Red
-        exit
+    
+        if ($githubJsonUrls.Count -eq 0) {
+            Write-Host "No valid applications selected. Exiting..." -ForegroundColor Red
+            exit
+        }
     }
 }
 catch {
