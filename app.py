@@ -10,6 +10,15 @@ def get_apps():
         apps = json.load(f)
     return jsonify(apps)
 
+@app.route('/api/intune-status')
+def get_intune_status():
+    try:
+        ps_cmd = 'pwsh -Command "& {. ./IntuneBrew.ps1; Get-IntuneApps | ConvertTo-Json}"'
+        ps_output = subprocess.check_output(ps_cmd, shell=True).decode()
+        return jsonify(json.loads(ps_output))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/app/<app_id>')
 def get_app_details(app_id):
     app_path = f'Apps/{app_id}.json'
@@ -18,7 +27,6 @@ def get_app_details(app_id):
             app_details = json.load(f)
 
         try:
-            # Get the global intune_apps data, creating it if doesn't exist
             if not hasattr(get_app_details, 'intune_apps'):
                 ps_cmd = 'pwsh -Command "& {. ./IntuneBrew.ps1; Get-IntuneApps | ConvertTo-Json}"'
                 ps_output = subprocess.check_output(ps_cmd, shell=True).decode()

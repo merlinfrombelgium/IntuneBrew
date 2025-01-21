@@ -6,21 +6,29 @@ function App() {
 
     const fetchIntuneStatus = async () => {
         setLoading(true);
-        const statuses = {};
-        
-        for (const [id] of apps) {
-            try {
-                const response = await fetch(`/api/app/${id}`);
-                const data = await response.json();
-                if (data.intuneStatus) {
-                    statuses[id] = data.intuneStatus;
-                }
-            } catch (error) {
-                console.error(`Error fetching status for ${id}:`, error);
-            }
+        try {
+            const response = await fetch('/api/intune-status');
+            const data = await response.json();
+            const statuses = {};
+            
+            data.forEach(app => {
+                const status = app.IntuneVersion === 'Not in Intune' ? 'Not in Intune' :
+                             app.GitHubVersion > app.IntuneVersion ? 'Update Available' :
+                             'Up-to-date';
+                const color = status === 'Not in Intune' ? 'red' :
+                            status === 'Update Available' ? 'yellow' :
+                            'green';
+                statuses[app.Name.toLowerCase().replace(/\s+/g, '_')] = {
+                    status,
+                    color,
+                    intuneVersion: app.IntuneVersion
+                };
+            });
+            
+            setAppStatuses(statuses);
+        } catch (error) {
+            console.error('Error fetching Intune status:', error);
         }
-        
-        setAppStatuses(statuses);
         setLoading(false);
     };
 
@@ -132,12 +140,36 @@ function App() {
                             </div>
                             <div className="space-y-4">
                                 <div className="space-y-4">
-                                    <div className="relative group flex items-center space-x-2">
-                                        <span className="font-semibold w-24">Version:</span>
-                                        <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.version}</code>
-                                        <button onClick={() => navigator.clipboard.writeText(selectedApp.version)} className="text-blue-600 hover:text-blue-800">
-                                            📋
-                                        </button>
+                                    <div className="space-y-2">
+                                        <div className="relative group flex items-center space-x-2">
+                                            <span className="font-semibold w-24">Version:</span>
+                                            <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.version}</code>
+                                            <button onClick={() => navigator.clipboard.writeText(selectedApp.version)} className="text-blue-600 hover:text-blue-800">
+                                                📋
+                                            </button>
+                                        </div>
+                                        {appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')] && (
+                                            <div className="flex items-center space-x-2">
+                                                <span className="font-semibold w-24">Intune:</span>
+                                                <div className="flex-1">
+                                                    <span 
+                                                        className="status-badge"
+                                                        style={{
+                                                            backgroundColor: appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].color === 'red' ? '#FEE2E2' :
+                                                                           appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].color === 'yellow' ? '#FEF3C7' :
+                                                                           '#D1FAE5',
+                                                            color: appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].color === 'red' ? '#DC2626' :
+                                                                   appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].color === 'yellow' ? '#D97706' :
+                                                                   '#059669'
+                                                        }}
+                                                    >
+                                                        {appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].status}
+                                                        {appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].intuneVersion !== 'Not in Intune' && 
+                                                            ` (${appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].intuneVersion})`}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
                                         {selectedApp.previous_version && (
                                             <div className="absolute hidden group-hover:block bg-black text-white p-2 rounded -top-8 left-24 text-sm">
                                                 Previous: {selectedApp.previous_version}
