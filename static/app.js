@@ -45,22 +45,99 @@ function App() {
                 </div>
 
                 {selectedApp && (
-                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                        <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-                            <div className="flex justify-between items-center mb-4">
+                    <div className="fixed inset-0 bg-gray-800 bg-opacity-75 overflow-y-auto h-full w-full z-50 backdrop-blur-sm">
+                        <div className="relative top-20 mx-auto p-6 border w-[32rem] shadow-2xl rounded-lg bg-white">
+                            <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-2xl font-bold">{selectedApp.name}</h3>
                                 <button 
                                     onClick={() => setSelectedApp(null)}
-                                    className="text-gray-500 hover:text-gray-700"
+                                    className="text-gray-500 hover:text-gray-700 text-xl"
                                 >
                                     ✕
                                 </button>
                             </div>
-                            <div className="space-y-3">
-                                <p><span className="font-semibold">Version:</span> {selectedApp.version}</p>
-                                <p><span className="font-semibold">Bundle ID:</span> {selectedApp.bundleId}</p>
-                                <p className="break-words"><span className="font-semibold">Description:</span> {selectedApp.description}</p>
-                                <div className="pt-4">
+                            <div className="space-y-4">
+                                <div className="relative group">
+                                    <p className="font-semibold mb-1">Version:</p>
+                                    <div className="flex items-center space-x-2">
+                                        <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.version}</code>
+                                        <button onClick={() => navigator.clipboard.writeText(selectedApp.version)} className="text-blue-600 hover:text-blue-800">
+                                            📋
+                                        </button>
+                                    </div>
+                                    {selectedApp.previous_version && (
+                                        <div className="absolute hidden group-hover:block bg-black text-white p-2 rounded -top-8 left-0 text-sm">
+                                            Previous: {selectedApp.previous_version}
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div>
+                                    <p className="font-semibold mb-1">Bundle ID:</p>
+                                    <div className="flex items-center space-x-2">
+                                        <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.bundleId || 'Not specified'}</code>
+                                        <button onClick={() => navigator.clipboard.writeText(selectedApp.bundleId)} className="text-blue-600 hover:text-blue-800">
+                                            📋
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p className="font-semibold mb-1">URL:</p>
+                                    <div className="flex items-center space-x-2">
+                                        <code className="bg-gray-100 p-2 rounded flex-1 break-all">{selectedApp.url}</code>
+                                        <button onClick={() => navigator.clipboard.writeText(selectedApp.url)} className="text-blue-600 hover:text-blue-800">
+                                            📋
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p className="font-semibold mb-1">Filename:</p>
+                                    <div className="flex items-center space-x-2">
+                                        <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.fileName}</code>
+                                        <button onClick={() => navigator.clipboard.writeText(selectedApp.fileName)} className="text-blue-600 hover:text-blue-800">
+                                            📋
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p className="font-semibold mb-1">Description:</p>
+                                    <p className="break-words bg-gray-100 p-2 rounded">{selectedApp.description}</p>
+                                </div>
+
+                                <div className="pt-4 flex justify-between items-center">
+                                    <div className="relative">
+                                        <button 
+                                            onClick={() => document.getElementById('exportMenu').classList.toggle('hidden')}
+                                            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                                        >
+                                            Export
+                                        </button>
+                                        <div id="exportMenu" className="hidden absolute left-0 mt-2 w-32 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+                                            <div className="py-1">
+                                                <button
+                                                    onClick={() => exportData(selectedApp, 'csv')}
+                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                                >
+                                                    CSV
+                                                </button>
+                                                <button
+                                                    onClick={() => exportData(selectedApp, 'json')}
+                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                                >
+                                                    JSON
+                                                </button>
+                                                <button
+                                                    onClick={() => exportData(selectedApp, 'yaml')}
+                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                                >
+                                                    YAML
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <a 
                                         href={selectedApp.homepage}
                                         target="_blank"
@@ -81,5 +158,52 @@ function App() {
         </div>
     );
 }
+
+// Export functionality
+function exportData(app, format) {
+    let content = '';
+    const filename = `${app.name.toLowerCase().replace(/\s+/g, '_')}`;
+
+    switch (format) {
+        case 'csv':
+            content = `Name,Version,Bundle ID,URL,Filename,Description\n"${app.name}","${app.version}","${app.bundleId || ''}","${app.url}","${app.fileName}","${app.description}"`;
+            download(`${filename}.csv`, content);
+            break;
+        case 'json':
+            content = JSON.stringify(app, null, 2);
+            download(`${filename}.json`, content);
+            break;
+        case 'yaml':
+            content = `name: ${app.name}
+version: ${app.version}
+bundleId: ${app.bundleId || ''}
+url: ${app.url}
+fileName: ${app.fileName}
+description: ${app.description}
+homepage: ${app.homepage}`;
+            download(`${filename}.yaml`, content);
+            break;
+    }
+}
+
+function download(filename, content) {
+    const element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+    element.setAttribute('download', filename);
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+}
+
+// Close export menu when clicking outside
+document.addEventListener('click', (e) => {
+    const exportMenu = document.getElementById('exportMenu');
+    const exportButton = e.target.closest('button');
+    
+    if (exportMenu && !exportMenu.classList.contains('hidden') && !exportButton) {
+        exportMenu.classList.add('hidden');
+    }
+});
 
 ReactDOM.render(<App />, document.getElementById('root'));
