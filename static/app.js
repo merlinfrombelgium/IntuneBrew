@@ -45,10 +45,28 @@ function App() {
                 </div>
 
                 {selectedApp && (
-                    <div className="fixed inset-0 bg-gray-800 bg-opacity-75 overflow-y-auto h-full w-full z-50 backdrop-blur-sm">
-                        <div className="relative top-20 mx-auto p-6 border w-[32rem] shadow-2xl rounded-lg bg-white">
+                    <div 
+                        className="fixed inset-0 bg-gray-800 bg-opacity-75 overflow-y-auto h-full w-full z-50 backdrop-blur-sm"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) {
+                                setSelectedApp(null);
+                            }
+                        }}
+                    >
+                        <div className="relative top-20 mx-auto p-6 border w-[42rem] shadow-2xl rounded-lg bg-white">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-2xl font-bold">{selectedApp.name}</h3>
+                                <div className="flex items-center gap-4">
+                                    <img 
+                                        src={`/Logos/${selectedApp.name.toLowerCase().replace(/\s+/g, '_')}.png`}
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = placeholderLogo;
+                                        }}
+                                        className="w-10 h-10 object-contain"
+                                        alt={selectedApp.name}
+                                    />
+                                    <h3 className="text-2xl font-bold">{selectedApp.name}</h3>
+                                </div>
                                 <button 
                                     onClick={() => setSelectedApp(null)}
                                     className="text-gray-500 hover:text-gray-700 text-xl"
@@ -57,52 +75,54 @@ function App() {
                                 </button>
                             </div>
                             <div className="space-y-4">
-                                <div className="relative group">
-                                    <p className="font-semibold mb-1">Version:</p>
-                                    <div className="flex items-center space-x-2">
-                                        <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.version}</code>
-                                        <button onClick={() => navigator.clipboard.writeText(selectedApp.version)} className="text-blue-600 hover:text-blue-800">
-                                            📋
-                                        </button>
-                                    </div>
-                                    {selectedApp.previous_version && (
-                                        <div className="absolute hidden group-hover:block bg-black text-white p-2 rounded -top-8 left-0 text-sm">
-                                            Previous: {selectedApp.previous_version}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="relative group">
+                                        <p className="font-semibold mb-1">Version:</p>
+                                        <div className="flex items-center space-x-2">
+                                            <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.version}</code>
+                                            <button onClick={() => navigator.clipboard.writeText(selectedApp.version)} className="text-blue-600 hover:text-blue-800">
+                                                📋
+                                            </button>
                                         </div>
-                                    )}
-                                </div>
-                                
-                                <div>
-                                    <p className="font-semibold mb-1">Bundle ID:</p>
-                                    <div className="flex items-center space-x-2">
-                                        <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.bundleId || 'Not specified'}</code>
-                                        <button onClick={() => navigator.clipboard.writeText(selectedApp.bundleId)} className="text-blue-600 hover:text-blue-800">
-                                            📋
-                                        </button>
+                                        {selectedApp.previous_version && (
+                                            <div className="absolute hidden group-hover:block bg-black text-white p-2 rounded -top-8 left-0 text-sm">
+                                                Previous: {selectedApp.previous_version}
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    <div>
+                                        <p className="font-semibold mb-1">Bundle ID:</p>
+                                        <div className="flex items-center space-x-2">
+                                            <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.bundleId || 'Not specified'}</code>
+                                            <button onClick={() => navigator.clipboard.writeText(selectedApp.bundleId)} className="text-blue-600 hover:text-blue-800">
+                                                📋
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <p className="font-semibold mb-1">URL:</p>
+                                        <div className="flex items-center space-x-2">
+                                            <code className="bg-gray-100 p-2 rounded flex-1 break-all">{selectedApp.url}</code>
+                                            <button onClick={() => navigator.clipboard.writeText(selectedApp.url)} className="text-blue-600 hover:text-blue-800">
+                                                📋
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <p className="font-semibold mb-1">Filename:</p>
+                                        <div className="flex items-center space-x-2">
+                                            <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.fileName}</code>
+                                            <button onClick={() => navigator.clipboard.writeText(selectedApp.fileName)} className="text-blue-600 hover:text-blue-800">
+                                                📋
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div>
-                                    <p className="font-semibold mb-1">URL:</p>
-                                    <div className="flex items-center space-x-2">
-                                        <code className="bg-gray-100 p-2 rounded flex-1 break-all">{selectedApp.url}</code>
-                                        <button onClick={() => navigator.clipboard.writeText(selectedApp.url)} className="text-blue-600 hover:text-blue-800">
-                                            📋
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <p className="font-semibold mb-1">Filename:</p>
-                                    <div className="flex items-center space-x-2">
-                                        <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.fileName}</code>
-                                        <button onClick={() => navigator.clipboard.writeText(selectedApp.fileName)} className="text-blue-600 hover:text-blue-800">
-                                            📋
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div>
+                                <div className="col-span-2">
                                     <p className="font-semibold mb-1">Description:</p>
                                     <p className="break-words bg-gray-100 p-2 rounded">{selectedApp.description}</p>
                                 </div>
