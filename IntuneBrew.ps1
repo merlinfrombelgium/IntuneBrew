@@ -134,24 +134,27 @@ if ($GUI) {
         exit 1
     }
 
-    # Check if Flask is installed
+    # Install UV if not already installed
     try {
-        $flaskCheck = python3 -c "import flask" 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "❌ Flask module not found. Installing Flask..." -ForegroundColor Yellow
-            $installResult = python3 -m pip install flask 2>&1
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "❌ Failed to install Flask. Error: $installResult" -ForegroundColor Red
-                exit 1
-            }
-            Write-Host "✅ Flask installed successfully" -ForegroundColor Green
+        $uvCheck = Get-Command uv -ErrorAction SilentlyContinue
+        if (-not $uvCheck) {
+            Write-Host "❌ UV not found. Installing UV..." -ForegroundColor Yellow
+            winget install astral-sh.uv
+            # Refresh PATH to include UV
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            Write-Host "✅ UV installed successfully" -ForegroundColor Green
         }
         else {
-            Write-Host "✅ Flask module detected" -ForegroundColor Green
+            Write-Host "✅ UV detected" -ForegroundColor Green
         }
+
+        # Install required Python packages using UV
+        Write-Host "Installing required Python packages..." -ForegroundColor Yellow
+        uv pip install flask flask-cors
+        Write-Host "✅ Python packages installed successfully" -ForegroundColor Green
     }
     catch {
-        Write-Host "❌ Error checking Flask installation: $_" -ForegroundColor Red
+        Write-Host "❌ Error installing dependencies: $_" -ForegroundColor Red
         exit 1
     }
 
@@ -801,7 +804,7 @@ foreach ($jsonUrl in $githubJsonUrls) {
     } while ($fileStatus.uploadState -ne "azureStorageUriRequestSuccess")
 
     UploadFileToAzureStorage $fileStatus.azureStorageUri "$appFilePath.bin"
-    Write-Host "✅ Upload completed successfully" -ForegroundColor Green
+    Write-Host"✅ Upload completed successfully" -ForegroundColor Green
 
     Write-Host "`n🔄 Committing file..." -ForegroundColor Yellow
     $commitData = @{
