@@ -13,7 +13,7 @@ function App() {
         <div className="min-h-screen bg-gray-100">
             <header className="bg-white shadow">
                 <div className="max-w-7xl mx-auto py-6 px-4">
-                    <img src="https://github.com/user-attachments/assets/c036ff17-ecad-4615-a7b5-6ffbd3d4ebf1" 
+                    <img src="/static/banner.png" 
                          alt="IntuneBrew Banner" 
                          className="banner" />
                 </div>
