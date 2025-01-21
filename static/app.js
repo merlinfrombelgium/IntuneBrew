@@ -17,6 +17,9 @@ function App() {
                     <img src="/static/banner.png" 
                          alt="IntuneBrew Banner" 
                          className="banner" />
+                    <div className="text-center mt-4 text-gray-600">
+                        Made with ❤️ by <a href="https://github.com/ugurkocde" className="text-blue-600 hover:text-blue-800">Ugur Koc</a>
+                    </div>
                 </div>
             </header>
             <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
