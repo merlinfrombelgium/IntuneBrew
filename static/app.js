@@ -75,7 +75,7 @@ function App() {
                                 </button>
                             </div>
                             <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-4">
                                     <div className="relative group flex items-center space-x-2">
                                         <span className="font-semibold w-24">Version:</span>
                                         <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.version}</code>
