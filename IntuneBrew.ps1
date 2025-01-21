@@ -623,6 +623,12 @@ function Write-ColoredTable {
 # Display the colored table with lines
 Write-ColoredTable $tableData
 
+# In GUI mode, stop here after displaying the status
+if ($GUI) {
+    Write-Host "`nStatus table displayed. GUI will handle further interactions." -ForegroundColor Green
+    exit 0
+}
+
 # Filter apps that need to be uploaded
 $appsToUpload = $intuneAppVersions | Where-Object { 
     $_.IntuneVersion -eq 'Not in Intune' -or (Is-NewerVersion $_.GitHubVersion $_.IntuneVersion)
