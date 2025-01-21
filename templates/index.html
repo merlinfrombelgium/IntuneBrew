@@ -13,6 +13,29 @@
             margin: 0 auto;
             display: block;
         }
+        #terminal {
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            padding: 10px;
+            overflow-y: auto;
+            background: #1e1e1e;
+            color: #fff;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .terminal-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: #1e1e1e;
+            z-index: 1000;
+            border-top: 2px solid #333;
+        }
     </style>
     <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
@@ -22,5 +45,8 @@
 </head>
 <body>
     <div id="root"></div>
+    <div class="terminal-container">
+        <div id="terminal"></div>
+    </div>
 </body>
 </html>
