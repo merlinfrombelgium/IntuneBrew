@@ -1,0 +1,8 @@
+
+{
+    "azure": {
+        "appId": "<your-app-id-here>",
+        "tenantId": "<your-tenant-id-here>",
+        "certThumbprint": "<your-certificate-thumbprint-here>"
+    }
+}

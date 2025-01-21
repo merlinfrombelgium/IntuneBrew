@@ -1,0 +1,8 @@
+config.yaml
+config.json
+
+# config.json.example
+{
+  "apiKey": "YOUR_API_KEY",
+  "databaseUrl": "YOUR_DATABASE_URL"
+}
