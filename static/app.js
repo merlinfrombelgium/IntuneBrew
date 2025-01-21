@@ -88,7 +88,7 @@ function App() {
                                             </div>
                                         )}
                                     </div>
-                                    
+
                                     <div className="flex items-center space-x-2">
                                         <span className="font-semibold w-24">Bundle ID:</span>
                                         <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.bundleId || 'Not specified'}</code>
@@ -212,7 +212,7 @@ function download(filename, content) {
 document.addEventListener('click', (e) => {
     const exportMenu = document.getElementById('exportMenu');
     const exportButton = e.target.closest('button');
-    
+
     if (exportMenu && !exportMenu.classList.contains('hidden') && !exportButton) {
         exportMenu.classList.add('hidden');
     }

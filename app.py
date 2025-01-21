@@ -3,8 +3,13 @@ from flask import Flask, render_template, jsonify, request, send_from_directory
 import json
 import subprocess
 import os
+import socketio
+from flask_sock import Sock
 
 app = Flask(__name__)
+sock = Sock(app)
+sio = socketio.Server(async_mode='threading')
+app.wsgi_app = socketio.WSGIApp(sio, app.wsgi_app)
 
 @app.route('/api/apps')
 def get_apps():
@@ -24,6 +29,19 @@ def get_app_details(app_id):
 @app.route('/Logos/<path:filename>')
 def serve_logo(filename):
     return send_from_directory('Logos', filename)
+
+@sio.on('terminal_input')
+def handle_terminal_input(sid, data):
+    # Here you can handle terminal input and send it to the PowerShell process
+    pass
+
+@sio.on('connect')
+def connect(sid, environ):
+    print('Client connected:', sid)
+
+@sio.on('disconnect')
+def disconnect(sid):
+    print('Client disconnected:', sid)
 
 @app.route('/')
 def index():
