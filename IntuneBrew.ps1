@@ -45,10 +45,18 @@ Write-Host ""
 
 
 # Authentication START
-# App registration details required for certificate-based authentication
-$appid = '<YourAppIdHere>' # Enterprise App (Service Principal) App ID
-$tenantid = '<YourTenantIdHere>' # Your tenant ID
-$certThumbprint = '<YourCertificateThumbprintHere>' # Certificate thumbprint from your certificate store
+# Load configuration from JSON file
+try {
+    $config = Get-Content -Raw -Path "config.json" | ConvertFrom-Json
+    $appid = $config.azure.appId
+    $tenantid = $config.azure.tenantId
+    $certThumbprint = $config.azure.certThumbprint
+}
+catch {
+    Write-Host "Error loading config.json: $_" -ForegroundColor Red
+    Write-Host "Please ensure config.json exists and contains valid credentials." -ForegroundColor Yellow
+    exit 1
+}
 
 # Required Graph API permissions for app functionality
 $requiredPermissions = @(
