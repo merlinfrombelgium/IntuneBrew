@@ -43,6 +43,37 @@ function App() {
                         </div>
                     ))}
                 </div>
+
+                {selectedApp && (
+                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                        <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-2xl font-bold">{selectedApp.name}</h3>
+                                <button 
+                                    onClick={() => setSelectedApp(null)}
+                                    className="text-gray-500 hover:text-gray-700"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                            <div className="space-y-3">
+                                <p><span className="font-semibold">Version:</span> {selectedApp.version}</p>
+                                <p><span className="font-semibold">Bundle ID:</span> {selectedApp.bundleId}</p>
+                                <p className="break-words"><span className="font-semibold">Description:</span> {selectedApp.description}</p>
+                                <div className="pt-4">
+                                    <a 
+                                        href={selectedApp.homepage}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:text-blue-800"
+                                    >
+                                        Visit Homepage →
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
             <footer className="text-center py-4 text-gray-600">
                 Made with ❤️ by <a href="https://github.com/ugurkocde" className="text-blue-600 hover:text-blue-800">Ugur Koc</a> | <a href="https://github.com/ugurkocde/IntuneBrew" className="text-blue-600 hover:text-blue-800">GitHub Repository</a>
