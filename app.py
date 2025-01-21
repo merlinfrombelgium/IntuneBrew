@@ -56,7 +56,12 @@ def get_app_details(app_id):
 
 @app.route('/Logos/<path:filename>')
 def serve_logo(filename):
-    return send_from_directory('Logos', filename)
+    try:
+        return send_from_directory('Logos', filename)
+    except:
+        # Return a transparent 1x1 pixel PNG for missing logos
+        empty_pixel = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+        return send_from_directory('static', 'empty.png') if os.path.exists('static/empty.png') else (empty_pixel.decode('base64'), 200, {'Content-Type': 'image/png'})
 
 
 

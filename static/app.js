@@ -82,9 +82,11 @@ function App() {
                             <img src={`/Logos/${id}.png`} 
                                  className="w-16 h-16 object-contain mb-4"
                                  onError={(e) => {
-                                     e.target.onerror = null;
-                                     e.target.src = placeholderLogo;
-                                     e.target.title = "Logo needed";
+                                     if (!e.target.retryAttempt) {
+                                         e.target.retryAttempt = true;
+                                         e.target.src = placeholderLogo;
+                                         e.target.title = "Logo needed";
+                                     }
                                  }}/>
                             <div>
                                 <h2 className="text-xl font-semibold">{id.replace(/_/g, ' ')}</h2>
