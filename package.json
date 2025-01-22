@@ -1,0 +1,25 @@
+{
+  "name": "intune-brew",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "src/frontend",
+    "src/backend"
+  ],
+  "scripts": {
+    "start": "dotenv -e .env -- concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "dotenv -e .env -- npm run start --workspace=src/backend",
+    "start:frontend": "dotenv -e .env -- npm run start --workspace=src/frontend",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "dotenv-cli": "^7.4.4",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.6.0",
+    "@microsoft/microsoft-graph-client": "^3.0.7"
+  }
+}

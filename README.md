@@ -138,3 +138,60 @@ If you encounter any issues or have questions:
 ---
 
 Made with ❤️ by [Ugur Koc](https://github.com/ugurkocde)
+
+## Certificate-Based Authentication Setup
+
+IntuneBrew uses certificate-based authentication with Microsoft Graph API for enhanced security. Here's how to set it up:
+
+### 1. Generate a Self-Signed Certificate
+
+```powershell
+# Generate a new self-signed certificate
+$cert = New-SelfSignedCertificate -Subject "CN=IntuneBrew" `
+    -CertStoreLocation "Cert:\CurrentUser\My" `
+    -KeyExportPolicy Exportable `
+    -KeySpec Signature `
+    -KeyLength 2048 `
+    -KeyAlgorithm RSA `
+    -HashAlgorithm SHA256 `
+    -NotAfter (Get-Date).AddYears(2) `
+    -KeyUsageProperty Sign `
+    -KeyUsage DigitalSignature `
+    -Type SSLServerAuthentication
+
+# Export the certificate for Azure AD
+$certPath = "intunebrew.cer"
+Export-Certificate -Cert $cert -FilePath $certPath -Type CERT
+
+# Export the certificate in PEM format for the application
+$pemPath = "intunebrew.pem"
+$base64 = [System.Convert]::ToBase64String($cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+"-----BEGIN CERTIFICATE-----`n" + ($base64 -replace '.{64}', '$0`n') + "`n-----END CERTIFICATE-----" | Out-File -FilePath $pemPath -Encoding ASCII
+
+Write-Host "Certificate thumbprint: $($cert.Thumbprint)"
+```
+
+### 2. Configure Azure AD App Registration
+
+1. Create a new App Registration in Azure Portal
+2. Navigate to "Certificates & secrets"
+3. Upload the `.cer` file generated above
+4. Add the required API permissions:
+   - DeviceManagementApps.ReadWrite.All
+5. Grant admin consent for the permissions
+
+### 3. Configure Environment Variables
+
+Create a `.env` file with the following variables:
+```env
+# Azure AD App Registration details
+AZURE_APP_ID=your-app-id
+AZURE_TENANT_ID=your-tenant-id
+
+# Certificate configuration
+AZURE_CLIENT_CERT_PATH=intunebrew.pem
+```
+
+### 4. Verify Certificate Setup
+
+The application will automatically use certificate-based authentication when the environment variables are properly configured. The certificate will be used to obtain access tokens from Azure AD for Microsoft Graph API calls.
