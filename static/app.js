@@ -1,71 +1,117 @@
+// MSAL configuration and Graph API integration
+const msalConfig = {
+  auth: {
+    clientId: process.env.AZURE_CLIENT_ID,
+    authority: `https://login.microsoftonline.com/${process.env.AZURE_TENANT_ID}`,
+    redirectUri: window.location.origin,
+  }
+};
+
+const graphScopes = ['DeviceManagementApps.ReadWrite.All'];
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+async function getTokenSilently() {
+  const account = msalInstance.getAllAccounts()[0];
+  if (!account) {
+    throw new Error('No active account');
+  }
+
+  const response = await msalInstance.acquireTokenSilent({
+    scopes: graphScopes,
+    account: account
+  });
+  return response.accessToken;
+}
+
+async function callGraphAPI(endpoint, method = 'GET', body = null) {
+  const token = await getTokenSilently();
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+
+  const options = {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : null
+  };
+
+  const response = await fetch(`https://graph.microsoft.com/beta${endpoint}`, options);
+  if (!response.ok) {
+    throw new Error(`Graph API error: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+async function getIntuneApps() {
+  const response = await callGraphAPI('/deviceAppManagement/mobileApps');
+  return response.value.filter(app => 
+    app['@odata.type']?.includes('macOS')
+  );
+}
+
+async function uploadAppToIntune(appInfo) {
+  // Create app in Intune
+  const appBody = {
+    '@odata.type': '#microsoft.graph.macOSPkgApp',
+    displayName: appInfo.name,
+    description: appInfo.description,
+    publisher: appInfo.publisher,
+    fileName: appInfo.fileName,
+    bundleId: appInfo.bundleId,
+    versionNumber: appInfo.version,
+    // Add other required properties
+  };
+
+  const app = await callGraphAPI('/deviceAppManagement/mobileApps', 'POST', appBody);
+
+  // Handle content version and file upload
+  // This would need to be implemented based on your specific requirements
+  return app;
+}
+
 function App() {
     const [apps, setApps] = React.useState([]);
     const [selectedApp, setSelectedApp] = React.useState(null);
     const [loading, setLoading] = React.useState(false);
     const [appStatuses, setAppStatuses] = React.useState({});
 
-    const fetchIntuneStatus = async () => {
-        setLoading(true);
-        try {
-            const response = await fetch('/api/intune-status');
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to fetch Intune status');
-            }
-            
-            const data = await response.json();
-            const statuses = {};
-            
-            if (Array.isArray(data)) {
-                data.forEach(app => {
-                    if (app && app.Name) {
-                        const status = app.IntuneVersion === 'Not in Intune' ? 'Not in Intune' :
-                                     app.GitHubVersion > app.IntuneVersion ? 'Update Available' :
-                                     'Up-to-date';
-                        const color = status === 'Not in Intune' ? 'red' :
-                                    status === 'Update Available' ? 'yellow' :
-                                    'green';
-                        statuses[app.Name.toLowerCase().replace(/\s+/g, '_')] = {
-                            status,
-                            color,
-                            intuneVersion: app.IntuneVersion,
-                            githubVersion: app.GitHubVersion,
-                            lastSyncTime: new Date().toISOString()
-                        };
-                    }
-                });
-            }
-            
-            setAppStatuses(statuses);
-        } catch (error) {
-            console.error('Error fetching Intune status:', error);
-        }
-        setLoading(false);
-    };
-
-    const refreshData = () => {
-        fetchIntuneStatus();
-    };
-
     React.useEffect(() => {
+        // Load supported apps
         fetch('/api/apps')
             .then(res => res.json())
-            .then(data => {
+            .then(async data => {
                 const appEntries = Object.entries(data);
                 setApps(appEntries);
-                fetchIntuneStatus();
+
+                // Get Intune status
+                try {
+                    const intuneApps = await getIntuneApps();
+                    const statuses = {};
+                    appEntries.forEach(([id, url]) => {
+                        const intuneApp = intuneApps.find(app => app.displayName === id);
+                        statuses[id] = {
+                            status: intuneApp ? 'Up-to-date' : 'Not in Intune',
+                            color: intuneApp ? 'green' : 'red',
+                            intuneVersion: intuneApp?.versionNumber || 'Not in Intune'
+                        };
+                    });
+                    setAppStatuses(statuses);
+                } catch (error) {
+                    console.error('Error fetching Intune status:', error);
+                }
             });
     }, []);
 
     const placeholderLogo = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 24 24'%3E%3Cpath fill='%23cccccc' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z'/%3E%3C/svg%3E";
-
+    
     return (
         <div className="min-h-screen bg-gray-100 relative">
             <div className="floating-container">
                 {loading ? (
                     <div className="spinner"></div>
                 ) : (
-                    <button onClick={refreshData} className="refresh-button">
+                    <button onClick={() => {setLoading(true); getIntuneApps().then(()=>setLoading(false));}} className="refresh-button">
                         🔄
                     </button>
                 )}
@@ -169,11 +215,11 @@ function App() {
                                                         className="status-badge"
                                                         style={{
                                                             backgroundColor: appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].color === 'red' ? '#FEE2E2' :
-                                                                           appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].color === 'yellow' ? '#FEF3C7' :
-                                                                           '#D1FAE5',
+                                                                            appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].color === 'yellow' ? '#FEF3C7' :
+                                                                            '#D1FAE5',
                                                             color: appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].color === 'red' ? '#DC2626' :
-                                                                   appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].color === 'yellow' ? '#D97706' :
-                                                                   '#059669'
+                                                                    appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].color === 'yellow' ? '#D97706' :
+                                                                    '#059669'
                                                         }}
                                                     >
                                                         {appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].status}
