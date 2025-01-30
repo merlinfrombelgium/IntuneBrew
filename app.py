@@ -24,18 +24,42 @@ def get_apps():
         logger.error(f'Error loading supported apps: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
+# Cache for Intune status
+intune_status_cache = None
+last_fetch_time = 0
+CACHE_DURATION = 60  # Cache duration in seconds
+
 @app.route('/api/intune-status')
 def get_intune_status():
+    global intune_status_cache, last_fetch_time
+    current_time = time.time()
+    
     logger.info('Fetching Intune status')
     try:
+        # Check if cache is still valid
+        if intune_status_cache and (current_time - last_fetch_time) < CACHE_DURATION:
+            logger.debug('Returning cached Intune status')
+            return jsonify(intune_status_cache)
+            
         ps_cmd = 'pwsh -Command "& {. ./IntuneBrew.ps1; Get-IntuneApps | ConvertTo-Json}"'
         logger.debug(f'Executing command: {ps_cmd}')
         ps_output = subprocess.check_output(ps_cmd, shell=True).decode()
         data = json.loads(ps_output)
         if not isinstance(data, list):
             data = [data] if data else []
+            
+        # Update cache
+        intune_status_cache = data
+        last_fetch_time = current_time
+        
         logger.debug(f'Retrieved status for {len(data)} apps')
         return jsonify(data)
+    except subprocess.CalledProcessError as e:
+        logger.error(f'PowerShell execution failed: {e.output.decode() if e.output else str(e)}')
+        return jsonify({'error': 'PowerShell execution failed'}), 500
+    except json.JSONDecodeError as e:
+        logger.error(f'Invalid JSON from PowerShell: {str(e)}')
+        return jsonify({'error': 'Invalid response format'}), 500
     except Exception as e:
         logger.error(f'Error getting Intune status: {str(e)}')
         return jsonify([]), 200  # Return empty array instead of error

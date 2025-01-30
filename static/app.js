@@ -8,6 +8,11 @@ function App() {
         setLoading(true);
         try {
             const response = await fetch('/api/intune-status');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to fetch Intune status');
+            }
+            
             const data = await response.json();
             const statuses = {};
             
@@ -23,7 +28,9 @@ function App() {
                         statuses[app.Name.toLowerCase().replace(/\s+/g, '_')] = {
                             status,
                             color,
-                            intuneVersion: app.IntuneVersion
+                            intuneVersion: app.IntuneVersion,
+                            githubVersion: app.GitHubVersion,
+                            lastSyncTime: new Date().toISOString()
                         };
                     }
                 });
