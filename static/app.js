@@ -1,8 +1,8 @@
 // MSAL configuration and Graph API integration
 const msalConfig = {
   auth: {
-    clientId: process.env.AZURE_CLIENT_ID,
-    authority: `https://login.microsoftonline.com/${process.env.AZURE_TENANT_ID}`,
+    clientId: window.AZURE_CLIENT_ID || '',
+    authority: `https://login.microsoftonline.com/${window.AZURE_TENANT_ID || ''}`,
     redirectUri: window.location.origin,
   }
 };
