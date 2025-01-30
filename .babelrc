@@ -1,8 +1,12 @@
 
 {
-  "presets": ["@babel/preset-react"],
+  "presets": [
+    ["@babel/preset-react", {
+      "runtime": "automatic"
+    }]
+  ],
   "plugins": [
-    ["transform-class-properties"],
-    ["transform-object-rest-spread"]
+    "@babel/plugin-proposal-class-properties",
+    "@babel/plugin-proposal-object-rest-spread"
   ]
 }
