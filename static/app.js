@@ -1,18 +1,27 @@
 // MSAL configuration and Graph API integration
-const msalConfig = {
-  auth: {
-    clientId: window.AZURE_CLIENT_ID || '',
-    authority: `https://login.microsoftonline.com/${window.AZURE_TENANT_ID || ''}`,
-    redirectUri: window.location.origin,
-  },
-  cache: {
-    cacheLocation: "sessionStorage",
-    storeAuthStateInCookie: false
+// Wait for MSAL to be available
+const initializeMSAL = () => {
+  if (typeof msal === 'undefined') {
+    setTimeout(initializeMSAL, 100);
+    return;
   }
+  
+  const msalConfig = {
+    auth: {
+      clientId: window.AZURE_CLIENT_ID || '',
+      authority: `https://login.microsoftonline.com/${window.AZURE_TENANT_ID || ''}`,
+      redirectUri: window.location.origin,
+    },
+    cache: {
+      cacheLocation: "sessionStorage",
+      storeAuthStateInCookie: false
+    }
+  };
+
+  window.msalInstance = new msal.PublicClientApplication(msalConfig);
 };
 
-// Initialize MSAL instance
-const msalInstance = new msal.PublicClientApplication(msalConfig);
+initializeMSAL();
 
 // Handle the redirect promise
 msalInstance.handleRedirectPromise().catch(err => {
