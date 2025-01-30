@@ -4,23 +4,73 @@ const msalConfig = {
     clientId: window.AZURE_CLIENT_ID || '',
     authority: `https://login.microsoftonline.com/${window.AZURE_TENANT_ID || ''}`,
     redirectUri: window.location.origin,
+  },
+  cache: {
+    cacheLocation: "sessionStorage",
+    storeAuthStateInCookie: false
   }
 };
+
+// Initialize MSAL instance
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+// Handle the redirect promise
+msalInstance.handleRedirectPromise().catch(err => {
+    console.error(err);
+});
+
+// Login function
+async function signIn() {
+    try {
+        const loginRequest = {
+            scopes: ["DeviceManagementApps.ReadWrite.All"]
+        };
+        await msalInstance.loginPopup(loginRequest);
+    } catch (err) {
+        console.error("Login failed:", err);
+    }
+}
+
+// Check if user is authenticated
+function getAccount() {
+    const currentAccounts = msalInstance.getAllAccounts();
+    if (currentAccounts.length === 0) {
+        signIn();
+        return null;
+    } else if (currentAccounts.length > 1) {
+        console.warn("Multiple accounts detected.");
+        return currentAccounts[0];
+    } else {
+        return currentAccounts[0];
+    }
+}
 
 const graphScopes = ['DeviceManagementApps.ReadWrite.All'];
 const msalInstance = new msal.PublicClientApplication(msalConfig);
 
 async function getTokenSilently() {
-  const account = msalInstance.getAllAccounts()[0];
-  if (!account) {
-    throw new Error('No active account');
-  }
+    const account = getAccount();
+    if (!account) {
+        throw new Error('No active account');
+    }
 
-  const response = await msalInstance.acquireTokenSilent({
-    scopes: graphScopes,
-    account: account
-  });
-  return response.accessToken;
+    try {
+        const response = await msalInstance.acquireTokenSilent({
+            scopes: graphScopes,
+            account: account
+        });
+        return response.accessToken;
+    } catch (error) {
+        if (error instanceof msal.InteractionRequiredAuthError) {
+            return msalInstance.acquireTokenPopup({
+                scopes: graphScopes,
+                account: account
+            }).then(response => {
+                return response.accessToken;
+            });
+        }
+        throw error;
+    }
 }
 
 async function callGraphAPI(endpoint, method = 'GET', body = null) {
