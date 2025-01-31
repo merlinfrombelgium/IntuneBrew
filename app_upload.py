@@ -30,12 +30,6 @@ class IntuneUploader:
             "versionNumber": app_info['version'],
             "primaryBundleId": app_info['bundleId'],
             "primaryBundleVersion": app_info['version'],
-            "informationUrl": app_info.get('homepage', ''),
-            "owner": app_info['name'],
-            "developer": app_info['name'],
-            "notes": f"Uploaded by IntuneBrew on {time.strftime('%Y-%m-%d %H:%M:%S')}",
-            "privacyInformationUrl": app_info.get('homepage', ''),
-            "largeIcon": self.get_app_logo(app_info['name']),
             "minimumSupportedOperatingSystem": {
                 "@odata.type": "#microsoft.graph.macOSMinimumOperatingSystem",
                 "v11_0": True
@@ -160,16 +154,3 @@ class IntuneUploader:
                 "committedContentVersion": content_version_id
             }
         ).json()
-def get_app_logo(self, app_name):
-        """Get and encode the app logo for Intune"""
-        logo_path = f'Logos/{app_name.lower().replace(" ", "_")}.png'
-        if not os.path.exists(logo_path):
-            return None
-            
-        with open(logo_path, 'rb') as f:
-            logo_data = f.read()
-            return {
-                "@odata.type": "#microsoft.graph.mimeContent",
-                "type": "image/png",
-                "value": base64.b64encode(logo_data).decode()
-            }

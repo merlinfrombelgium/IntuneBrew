@@ -197,15 +197,10 @@ function App() {
                     {apps.map(([id, url]) => (
                         <div key={id} 
                              className="bg-white overflow-hidden shadow rounded-lg p-4 hover:shadow-lg cursor-pointer"
-                             onClick={async () => {
-                                 try {
-                                     const res = await fetch(`/api/app/${id}`);
-                                     if (!res.ok) throw new Error('Failed to fetch app details');
-                                     const data = await res.json();
-                                     setSelectedApp(data);
-                                 } catch (error) {
-                                     console.error('Error loading app details:', error);
-                                 }
+                             onClick={() => {
+                                 fetch(`/api/app/${id}`)
+                                     .then(res => res.json())
+                                     .then(data => setSelectedApp(data));
                              }}>
                             <img src={`/Logos/${id}.png`} 
                                  className="w-16 h-16 object-contain mb-4"
@@ -217,10 +212,10 @@ function App() {
                                      }
                                  }}/>
                             <div>
-                                <div className="flex flex-col items-center mb-4">
+                                <h2 className="text-xl font-semibold">{id.replace(/_/g, ' ')}</h2>
                                 {appStatuses[id] && (
                                     <span 
-                                        className="status-badge mb-2"
+                                        className="status-badge mt-2"
                                         style={{
                                             backgroundColor: appStatuses[id].color === 'red' ? '#FEE2E2' :
                                                            appStatuses[id].color === 'yellow' ? '#FEF3C7' :
@@ -233,8 +228,6 @@ function App() {
                                         {appStatuses[id].status}
                                     </span>
                                 )}
-                                <h2 className="text-xl font-semibold text-center">{id.replace(/_/g, ' ')}</h2>
-                            </div>
                             </div>
                         </div>
                     ))}
