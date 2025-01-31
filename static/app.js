@@ -382,6 +382,13 @@ function App() {
                                         <button
                                             onClick={async () => {
                                                 const appId = selectedApp.name.toLowerCase().replace(/\s+/g, '_');
+                                                const currentStatus = appStatuses[appId];
+                                                
+                                                // Check if app is already in Intune with same version
+                                                if (currentStatus?.intuneVersion === selectedApp.version) {
+                                                    return; // Already up to date, do nothing
+                                                }
+                                                
                                                 setUploadStates(prev => ({
                                                     ...prev,
                                                     [appId]: { status: 'uploading', timestamp: new Date().toISOString() }
@@ -433,10 +440,12 @@ function App() {
                                                     : uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'error'
                                                     ? 'bg-red-600 hover:bg-red-700'
                                                     : appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'Up-to-date'
-                                                    ? 'bg-gray-600'
+                                                    ? 'bg-gray-400 cursor-not-allowed'
                                                     : 'bg-green-600 hover:bg-green-700'
                                             } text-white`}
-                                            disabled={uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'uploading'}
+                                            disabled={uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'uploading' || 
+                                                     (appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'Up-to-date' &&
+                                                      appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.intuneVersion === selectedApp.version)}
                                         >
                                             {uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'uploading'
                                                 ? 'Uploading...'
