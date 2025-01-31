@@ -146,11 +146,15 @@ class IntuneUploader:
 
     def finalize_upload(self, app_id, app_type, content_version_id):
         """Finalize the app upload"""
-        return requests.patch(
+        response = requests.patch(
             f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}",
             headers=self.headers,
             json={
                 "@odata.type": f"#microsoft.graph.{app_type}",
-                "committedContentVersion": content_version_id
+                "committedContentVersion": content_version_id,
+                "displayVersion": content_version_id  # Add display version
             }
-        ).json()
+        )
+        if not response.ok:
+            raise Exception(f"Failed to finalize upload: {response.status_code} - {response.text}")
+        return response.json()

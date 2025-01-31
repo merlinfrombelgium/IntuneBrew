@@ -119,28 +119,35 @@ def get_app_details(app_id):
             app_details = json.load(f)
 
         try:
-            if not hasattr(get_app_details, 'intune_apps'):
-                ps_cmd = 'pwsh -Command "& {. ./IntuneBrew.ps1; Get-IntuneApps | ConvertTo-Json}"'
-                ps_output = subprocess.check_output(ps_cmd, shell=True).decode()
-                get_app_details.intune_apps = json.loads(ps_output)
-
-            # Find matching app
-            intune_app = next((app for app in get_app_details.intune_apps if app['Name'] == app_details['name']), None)
-
-            if intune_app:
-                status = ('Not in Intune' if intune_app['IntuneVersion'] == 'Not in Intune'
-                         else 'Update Available' if intune_app['GitHubVersion'] > intune_app['IntuneVersion']
-                         else 'Up-to-date')
-                color = ('red' if status == 'Not in Intune'
-                        else 'yellow' if status == 'Update Available'
-                        else 'green')
+            token = request.headers.get('Authorization', '').split(' ')[1]
+            uploader = IntuneUploader(token)
+            
+            # Query Intune for app status
+            filter_query = f"displayName eq '{app_details['name']}'"
+            response = requests.get(
+                f"{uploader.base_url}/deviceAppManagement/mobileApps?$filter=(isof('microsoft.graph.macOSDmgApp') or isof('microsoft.graph.macOSPkgApp')) and {filter_query}",
+                headers=uploader.headers
+            )
+            
+            intune_apps = response.json().get('value', [])
+            if intune_apps:
+                intune_app = intune_apps[0]
+                intune_version = intune_app.get('versionNumber', 'Unknown')
+                status = ('Update Available' if app_details['version'] > intune_version else 'Up-to-date')
+                color = ('yellow' if status == 'Update Available' else 'green')
                 app_details['intuneStatus'] = {
                     'status': status,
                     'color': color,
-                    'intuneVersion': intune_app['IntuneVersion']
+                    'intuneVersion': intune_version
+                }
+            else:
+                app_details['intuneStatus'] = {
+                    'status': 'Not in Intune',
+                    'color': 'red',
+                    'intuneVersion': 'Not in Intune'
                 }
 
-        except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+        except Exception as e:
             app_details['intuneStatus'] = {'error': str(e)}
 
         return jsonify(app_details)
