@@ -1,27 +1,17 @@
 // MSAL configuration and Graph API integration
-// Wait for MSAL to be available
-const initializeMSAL = () => {
-  if (typeof msal === 'undefined') {
-    setTimeout(initializeMSAL, 100);
-    return;
+const msalConfig = {
+  auth: {
+    clientId: window.AZURE_CLIENT_ID || '',
+    authority: `https://login.microsoftonline.com/${window.AZURE_TENANT_ID || ''}`,
+    redirectUri: window.location.origin,
+  },
+  cache: {
+    cacheLocation: "sessionStorage",
+    storeAuthStateInCookie: false
   }
-  
-  const msalConfig = {
-    auth: {
-      clientId: window.AZURE_CLIENT_ID || '',
-      authority: `https://login.microsoftonline.com/${window.AZURE_TENANT_ID || ''}`,
-      redirectUri: window.location.origin,
-    },
-    cache: {
-      cacheLocation: "sessionStorage",
-      storeAuthStateInCookie: false
-    }
-  };
-
-  window.msalInstance = new msal.PublicClientApplication(msalConfig);
 };
 
-initializeMSAL();
+const msalInstance = new msal.PublicClientApplication(msalConfig);
 
 // Handle the redirect promise
 msalInstance.handleRedirectPromise().catch(err => {
@@ -55,7 +45,6 @@ function getAccount() {
 }
 
 const graphScopes = ['DeviceManagementApps.ReadWrite.All'];
-const msalInstance = new msal.PublicClientApplication(msalConfig);
 
 async function getTokenSilently() {
     const account = getAccount();
