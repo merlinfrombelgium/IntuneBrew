@@ -65,6 +65,37 @@ def get_intune_status():
         logger.error(f'Error getting Intune status: {str(e)}')
         return jsonify([]), 200  # Return empty array instead of error
 
+@app.route('/api/upload', methods=['POST'])
+def upload_app():
+    try:
+        token = request.headers.get('Authorization').split(' ')[1]
+        app_info = request.json
+        
+        uploader = IntuneUploader(token)
+        app = uploader.create_app(app_info)
+        
+        # Download the app package
+        response = requests.get(app_info['url'])
+        temp_file = f"/tmp/{app_info['fileName']}"
+        with open(temp_file, 'wb') as f:
+            f.write(response.content)
+        
+        # Upload to Intune
+        encryption_info = uploader.encrypt_file(temp_file)
+        app_type = "macOSDmgApp" if app_info['fileName'].endswith('.dmg') else "macOSPkgApp"
+        content_version_id = uploader.upload_file(app['id'], app_type, temp_file, encryption_info)
+        result = uploader.finalize_upload(app['id'], app_type, content_version_id)
+        
+        # Cleanup
+        os.remove(temp_file)
+        if os.path.exists(f"{temp_file}.bin"):
+            os.remove(f"{temp_file}.bin")
+            
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f'Upload failed: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/app/<app_id>')
 def get_app_details(app_id):
     logger.info(f'Fetching details for app: {app_id}')

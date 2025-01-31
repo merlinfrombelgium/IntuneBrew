@@ -315,35 +315,60 @@ function App() {
                                 </div>
 
                                 <div className="pt-4 flex justify-between items-center">
-                                    <div className="relative">
-                                        <button 
-                                            onClick={() => document.getElementById('exportMenu').classList.toggle('hidden')}
-                                            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                                        >
-                                            Export
-                                        </button>
-                                        <div id="exportMenu" className="hidden absolute left-0 mt-2 w-32 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
-                                            <div className="py-1">
-                                                <button
-                                                    onClick={() => exportData(selectedApp, 'csv')}
-                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                                                >
-                                                    CSV
-                                                </button>
-                                                <button
-                                                    onClick={() => exportData(selectedApp, 'json')}
-                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                                                >
-                                                    JSON
-                                                </button>
-                                                <button
-                                                    onClick={() => exportData(selectedApp, 'yaml')}
-                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                                                >
-                                                    YAML
-                                                </button>
+                                    <div className="flex gap-2">
+                                        <div className="relative">
+                                            <button 
+                                                onClick={() => document.getElementById('exportMenu').classList.toggle('hidden')}
+                                                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                                            >
+                                                Export
+                                            </button>
+                                            <div id="exportMenu" className="hidden absolute left-0 mt-2 w-32 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+                                                <div className="py-1">
+                                                    <button
+                                                        onClick={() => exportData(selectedApp, 'csv')}
+                                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                                    >
+                                                        CSV
+                                                    </button>
+                                                    <button
+                                                        onClick={() => exportData(selectedApp, 'json')}
+                                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                                    >
+                                                        JSON
+                                                    </button>
+                                                    <button
+                                                        onClick={() => exportData(selectedApp, 'yaml')}
+                                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                                    >
+                                                        YAML
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    const token = await getTokenSilently();
+                                                    const response = await fetch('/api/upload', {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'Content-Type': 'application/json',
+                                                            'Authorization': `Bearer ${token}`
+                                                        },
+                                                        body: JSON.stringify(selectedApp)
+                                                    });
+                                                    if (!response.ok) throw new Error('Upload failed');
+                                                    alert('Application uploaded successfully!');
+                                                } catch (error) {
+                                                    console.error('Upload error:', error);
+                                                    alert('Failed to upload application: ' + error.message);
+                                                }
+                                            }}
+                                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                        >
+                                            Upload to Intune
+                                        </button>
                                     </div>
                                     <a 
                                         href={selectedApp.homepage}
