@@ -25,6 +25,7 @@ async function signIn() {
             scopes: ["DeviceManagementApps.ReadWrite.All"]
         };
         await msalInstance.loginPopup(loginRequest);
+        window.location.reload();
     } catch (err) {
         console.error("Login failed:", err);
     }
@@ -121,35 +122,51 @@ async function uploadAppToIntune(appInfo) {
 function App() {
     const [apps, setApps] = React.useState([]);
     const [selectedApp, setSelectedApp] = React.useState(null);
-    const [loading, setLoading] = React.useState(false);
+    const [loading, setLoading] = React.useState(true);
     const [appStatuses, setAppStatuses] = React.useState({});
+    const [isAuthenticated, setIsAuthenticated] = React.useState(false);
 
     React.useEffect(() => {
+        // Check authentication status
+        const account = getAccount();
+        setIsAuthenticated(!!account);
+        
         // Load supported apps
         fetch('/api/apps')
             .then(res => res.json())
-            .then(async data => {
+            .then(data => {
                 const appEntries = Object.entries(data);
                 setApps(appEntries);
-
-                // Get Intune status
-                try {
-                    const intuneApps = await getIntuneApps();
-                    const statuses = {};
-                    appEntries.forEach(([id, url]) => {
-                        const intuneApp = intuneApps.find(app => app.displayName === id);
-                        statuses[id] = {
-                            status: intuneApp ? 'Up-to-date' : 'Not in Intune',
-                            color: intuneApp ? 'green' : 'red',
-                            intuneVersion: intuneApp?.versionNumber || 'Not in Intune'
-                        };
-                    });
-                    setAppStatuses(statuses);
-                } catch (error) {
-                    console.error('Error fetching Intune status:', error);
-                }
+                setLoading(false);
             });
     }, []);
+
+    React.useEffect(() => {
+        async function fetchIntuneStatus() {
+            if (!isAuthenticated) return;
+            
+            setLoading(true);
+            try {
+                const intuneApps = await getIntuneApps();
+                const statuses = {};
+                apps.forEach(([id]) => {
+                    const intuneApp = intuneApps.find(app => 
+                        app.displayName.toLowerCase() === id.toLowerCase());
+                    statuses[id] = {
+                        status: intuneApp ? 'Up-to-date' : 'Not in Intune',
+                        color: intuneApp ? 'green' : 'red',
+                        intuneVersion: intuneApp?.versionNumber || 'Not in Intune'
+                    };
+                });
+                setAppStatuses(statuses);
+            } catch (error) {
+                console.error('Error fetching Intune status:', error);
+            }
+            setLoading(false);
+        }
+
+        fetchIntuneStatus();
+    }, [isAuthenticated, apps]);
 
     const placeholderLogo = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 24 24'%3E%3Cpath fill='%23cccccc' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z'/%3E%3C/svg%3E";
     
