@@ -92,57 +92,60 @@ class IntuneUploader:
 
     def upload_file(self, app_id, app_type, file_path, encryption_info):
         """Handle the complete file upload process"""
-        # Create content version
-        content_version = requests.post(
-            f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.{app_type}/contentVersions",
-            headers=self.headers,
-            json={}
-        ).json()
-
-        # Create file entry
-        file_size = os.path.getsize(file_path)
-        encrypted_size = os.path.getsize(f"{file_path}.bin")
-        
-        file_body = {
-            "@odata.type": "#microsoft.graph.mobileAppContentFile",
-            "name": os.path.basename(file_path),
-            "size": file_size,
-            "sizeEncrypted": encrypted_size,
-            "isDependency": False
-        }
-
-        content_file = requests.post(
-            f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.{app_type}/contentVersions/{content_version['id']}/files",
-            headers=self.headers,
-            json=file_body
-        ).json()
-
-        # Get Azure Storage URI
-        file_uri = None
-        while not file_uri:
-            status = requests.get(
-                f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.{app_type}/contentVersions/{content_version['id']}/files/{content_file['id']}",
-                headers=self.headers
+        try:
+            # Create content version
+            content_version = requests.post(
+                f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.{app_type}/contentVersions",
+                headers=self.headers,
+                json={}
             ).json()
-            if status['uploadState'] == 'azureStorageUriRequestSuccess':
-                file_uri = status['azureStorageUri']
 
-        # Upload to Azure Storage
-        with open(f"{file_path}.bin", 'rb') as f:
-            requests.put(
-                file_uri,
-                headers={"x-ms-blob-type": "BlockBlob"},
-                data=f
+            # Create file entry
+            file_size = os.path.getsize(file_path)
+            encrypted_size = os.path.getsize(f"{file_path}.bin")
+            
+            file_body = {
+                "@odata.type": "#microsoft.graph.mobileAppContentFile",
+                "name": os.path.basename(file_path),
+                "size": file_size,
+                "sizeEncrypted": encrypted_size,
+                "isDependency": False
+            }
+
+            content_file = requests.post(
+                f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.{app_type}/contentVersions/{content_version['id']}/files",
+                headers=self.headers,
+                json=file_body
+            ).json()
+
+            # Get Azure Storage URI
+            file_uri = None
+            while not file_uri:
+                status = requests.get(
+                    f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.{app_type}/contentVersions/{content_version['id']}/files/{content_file['id']}",
+                    headers=self.headers
+                ).json()
+                if status['uploadState'] == 'azureStorageUriRequestSuccess':
+                    file_uri = status['azureStorageUri']
+
+            # Upload to Azure Storage
+            with open(f"{file_path}.bin", 'rb') as f:
+                requests.put(
+                    file_uri,
+                    headers={"x-ms-blob-type": "BlockBlob"},
+                    data=f
+                )
+
+            # Commit the file
+            requests.post(
+                f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.{app_type}/contentVersions/{content_version['id']}/files/{content_file['id']}/commit",
+                headers=self.headers,
+                json={"fileEncryptionInfo": encryption_info}
             )
 
-        # Commit the file
-        requests.post(
-            f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.{app_type}/contentVersions/{content_version['id']}/files/{content_file['id']}/commit",
-            headers=self.headers,
-            json={"fileEncryptionInfo": encryption_info}
-        )
-
-        return content_version['id']
+            return content_version['id']
+        except Exception as e:
+            raise Exception(f"Error during file upload: {str(e)}")
 
     def finalize_upload(self, app_id, app_type, content_version_id):
         """Finalize the app upload"""
@@ -157,28 +160,29 @@ class IntuneUploader:
             payload = current_app.copy()
             payload.update({
                 "@odata.type": f"#microsoft.graph.{app_type}",
-                "committedContentVersion": content_version_id,
-                "displayVersion": content_version_id
+                "committedContentVersion": content_version_id
             })
 
             # Remove fields that shouldn't be included in update
             fields_to_remove = ['id', '@odata.context', 'createdDateTime', 'lastModifiedDateTime', 'uploadState']
             for field in fields_to_remove:
                 payload.pop(field, None)
-                
+
             response = requests.patch(
-            f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}",
-            headers=self.headers,
-            json=payload
-        )
-        
-        if not response.ok:
-            error_msg = f"Failed to finalize upload: {response.status_code}"
-            try:
-                error_details = response.json()
-                error_msg += f" - {json.dumps(error_details)}"
-            except:
-                error_msg += f" - {response.text}"
-            raise Exception(error_msg)
-            
-        return response.json()
+                f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}",
+                headers=self.headers,
+                json=payload
+            )
+
+            if not response.ok:
+                error_msg = f"Failed to finalize upload: {response.status_code}"
+                try:
+                    error_details = response.json()
+                    error_msg += f" - {json.dumps(error_details)}"
+                except:
+                    error_msg += f" - {response.text}"
+                raise Exception(error_msg)
+
+            return response.json()
+        except Exception as e:
+            raise Exception(f"Error finalizing upload: {str(e)}")
