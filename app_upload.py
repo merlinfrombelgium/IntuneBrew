@@ -79,8 +79,10 @@ class IntuneUploader:
             print("App creation response:", json.dumps(result, indent=2))
             if 'id' not in result:
                 raise Exception("App creation response missing required 'id' field")
-            
-        return result
+            return result
+        except Exception as e:
+            print(f"Error processing app creation response: {str(e)}")
+            raise
 
     def encrypt_file(self, file_path):
         """Encrypt the app file for upload"""
