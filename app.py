@@ -43,13 +43,30 @@ def get_intune_status():
         if intune_status_cache and (current_time - last_fetch_time) < CACHE_DURATION:
             logger.debug('Returning cached Intune status')
             return jsonify(intune_status_cache)
-            
-        ps_cmd = 'pwsh -Command "& {. ./IntuneBrew.ps1; Get-IntuneApps | ConvertTo-Json}"'
-        logger.debug(f'Executing command: {ps_cmd}')
-        ps_output = subprocess.check_output(ps_cmd, shell=True).decode()
-        data = json.loads(ps_output)
-        if not isinstance(data, list):
-            data = [data] if data else []
+        
+        # Get token from request headers
+        token = request.headers.get('Authorization', '').split(' ')[1]
+        if not token:
+            return jsonify({'error': 'No authorization token provided'}), 401
+
+        # Use the IntuneUploader to get app status
+        uploader = IntuneUploader(token)
+        response = requests.get(
+            f"{uploader.base_url}/deviceAppManagement/mobileApps?$filter=(isof('microsoft.graph.macOSDmgApp') or isof('microsoft.graph.macOSPkgApp'))",
+            headers=uploader.headers
+        )
+        
+        apps = response.json().get('value', [])
+        data = []
+        
+        # Process each app
+        for app in apps:
+            app_data = {
+                'Name': app.get('displayName', ''),
+                'IntuneVersion': app.get('versionNumber', 'Unknown'),
+                'GitHubVersion': 'N/A'  # This would need to be fetched from your GitHub repo
+            }
+            data.append(app_data)
             
         # Update cache
         intune_status_cache = data
@@ -57,12 +74,6 @@ def get_intune_status():
         
         logger.debug(f'Retrieved status for {len(data)} apps')
         return jsonify(data)
-    except subprocess.CalledProcessError as e:
-        logger.error(f'PowerShell execution failed: {e.output.decode() if e.output else str(e)}')
-        return jsonify({'error': 'PowerShell execution failed'}), 500
-    except json.JSONDecodeError as e:
-        logger.error(f'Invalid JSON from PowerShell: {str(e)}')
-        return jsonify({'error': 'Invalid response format'}), 500
     except Exception as e:
         logger.error(f'Error getting Intune status: {str(e)}')
         return jsonify([]), 200  # Return empty array instead of error
