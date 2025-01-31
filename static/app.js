@@ -131,7 +131,7 @@ function App() {
         // Check authentication status
         const account = getAccount();
         setIsAuthenticated(!!account);
-        
+
         // Load supported apps
         fetch('/api/apps')
             .then(res => res.json())
@@ -145,7 +145,7 @@ function App() {
     React.useEffect(() => {
         async function fetchIntuneStatus() {
             if (!isAuthenticated) return;
-            
+
             setLoading(true);
             try {
                 const intuneApps = await getIntuneApps();
@@ -170,7 +170,7 @@ function App() {
     }, [isAuthenticated, apps]);
 
     const placeholderLogo = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 24 24'%3E%3Cpath fill='%23cccccc' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z'/%3E%3C/svg%3E";
-    
+
     return (
         <div className="min-h-screen bg-gray-100 relative">
             <div className="floating-container">
@@ -197,10 +197,26 @@ function App() {
                     {apps.map(([id, url]) => (
                         <div key={id} 
                              className="bg-white overflow-hidden shadow rounded-lg p-4 hover:shadow-lg cursor-pointer"
-                             onClick={() => {
-                                 fetch(`/api/app/${id}`)
-                                     .then(res => res.json())
-                                     .then(data => setSelectedApp(data));
+                             onClick={async () => {
+                                 try {
+                                     const token = await getTokenSilently();
+                                     const res = await fetch(`/api/app/${id}`, {
+                                         headers: {
+                                             'Authorization': `Bearer ${token}`
+                                         }
+                                     });
+                                     if (!res.ok) {
+                                         console.error('Server response:', await res.text());
+                                         throw new Error('Failed to fetch app details');
+                                     }
+                                     const data = await res.json();
+                                     setSelectedApp(data);
+                                 } catch (error) {
+                                     console.error('Error loading app details:', error);
+                                     if (error.message.includes('No active account')) {
+                                         await signIn();
+                                     }
+                                 }
                              }}>
                             <img src={`/Logos/${id}.png`} 
                                  className="w-16 h-16 object-contain mb-4"
@@ -383,12 +399,12 @@ function App() {
                                             onClick={async () => {
                                                 const appId = selectedApp.name.toLowerCase().replace(/\s+/g, '_');
                                                 const currentStatus = appStatuses[appId];
-                                                
+
                                                 // Check if app is already in Intune with same version
                                                 if (currentStatus?.intuneVersion === selectedApp.version) {
                                                     return; // Already up to date, do nothing
                                                 }
-                                                
+
                                                 setUploadStates(prev => ({
                                                     ...prev,
                                                     [appId]: { status: 'uploading', timestamp: new Date().toISOString() }
