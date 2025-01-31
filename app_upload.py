@@ -165,8 +165,8 @@ class IntuneUploader:
             fields_to_remove = ['id', '@odata.context', 'createdDateTime', 'lastModifiedDateTime', 'uploadState']
             for field in fields_to_remove:
                 payload.pop(field, None)
-            
-        response = requests.patch(
+                
+            response = requests.patch(
             f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}",
             headers=self.headers,
             json=payload
