@@ -5,7 +5,6 @@ import os
 from base64 import b64encode
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding, hashes, hmac
-import os
 
 class IntuneUploader:
     def __init__(self, access_token):
