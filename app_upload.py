@@ -146,15 +146,38 @@ class IntuneUploader:
 
     def finalize_upload(self, app_id, app_type, content_version_id):
         """Finalize the app upload"""
+        payload = {
+            "@odata.type": f"#microsoft.graph.{app_type}",
+            "committedContentVersion": content_version_id
+        }
+        
+        # First, get the current app state
+        try:
+            current_app = requests.get(
+                f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}",
+                headers=self.headers
+            ).json()
+            
+            # Preserve existing fields while updating necessary ones
+            for key in ['displayName', 'description', 'publisher', 'largeIcon']:
+                if key in current_app:
+                    payload[key] = current_app[key]
+        except Exception as e:
+            logging.error(f"Error fetching current app state: {str(e)}")
+            
         response = requests.patch(
             f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}",
             headers=self.headers,
-            json={
-                "@odata.type": f"#microsoft.graph.{app_type}",
-                "committedContentVersion": content_version_id,
-                "displayVersion": content_version_id  # Add display version
-            }
+            json=payload
         )
+        
         if not response.ok:
-            raise Exception(f"Failed to finalize upload: {response.status_code} - {response.text}")
+            error_msg = f"Failed to finalize upload: {response.status_code}"
+            try:
+                error_details = response.json()
+                error_msg += f" - {json.dumps(error_details)}"
+            except:
+                error_msg += f" - {response.text}"
+            raise Exception(error_msg)
+            
         return response.json()
