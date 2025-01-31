@@ -146,24 +146,25 @@ class IntuneUploader:
 
     def finalize_upload(self, app_id, app_type, content_version_id):
         """Finalize the app upload"""
-        payload = {
-            "@odata.type": f"#microsoft.graph.{app_type}",
-            "committedContentVersion": content_version_id
-        }
-        
-        # First, get the current app state
         try:
+            # Get current app state first
             current_app = requests.get(
                 f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}",
                 headers=self.headers
             ).json()
             
-            # Preserve existing fields while updating necessary ones
-            for key in ['displayName', 'description', 'publisher', 'largeIcon']:
-                if key in current_app:
-                    payload[key] = current_app[key]
-        except Exception as e:
-            logging.error(f"Error fetching current app state: {str(e)}")
+            # Start with current app data and update necessary fields
+            payload = current_app.copy()
+            payload.update({
+                "@odata.type": f"#microsoft.graph.{app_type}",
+                "committedContentVersion": content_version_id,
+                "displayVersion": content_version_id
+            })
+
+            # Remove fields that shouldn't be included in update
+            fields_to_remove = ['id', '@odata.context', 'createdDateTime', 'lastModifiedDateTime', 'uploadState']
+            for field in fields_to_remove:
+                payload.pop(field, None)
             
         response = requests.patch(
             f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}",
