@@ -26,10 +26,12 @@ class IntuneUploader:
             "description": app_info['description'],
             "publisher": app_info['name'],
             "fileName": app_info['fileName'],
+            "packageIdentifier": app_info['bundleId'],
             "bundleId": app_info['bundleId'],
             "versionNumber": app_info['version'],
             "primaryBundleId": app_info['bundleId'],
             "primaryBundleVersion": app_info['version'],
+            "informationUrl": app_info.get('homepage', ''),
             "minimumSupportedOperatingSystem": {
                 "@odata.type": "#microsoft.graph.macOSMinimumOperatingSystem",
                 "v11_0": True
@@ -40,6 +42,9 @@ class IntuneUploader:
                 "bundleVersion": app_info['version']
             }]
         }
+
+        # Log the payload for debugging
+        print("Creating app with payload:", json.dumps(payload, indent=2))
 
         max_retries = 3
         retry_delay = 5  # seconds
@@ -62,14 +67,18 @@ class IntuneUploader:
             error_msg = f"Failed to create app: HTTP {response.status_code}"
             try:
                 error_details = response.json()
+                print("Error response:", json.dumps(error_details, indent=2))
                 error_msg += f" - {json.dumps(error_details)}"
-            except:
+            except Exception as e:
+                print("Failed to parse error response:", str(e))
                 error_msg += f" - {response.text}"
             raise Exception(error_msg)
             
-        result = response.json()
-        if 'id' not in result:
-            raise Exception("App creation response missing required 'id' field")
+        try:
+            result = response.json()
+            print("App creation response:", json.dumps(result, indent=2))
+            if 'id' not in result:
+                raise Exception("App creation response missing required 'id' field")
             
         return result
 
