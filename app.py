@@ -119,13 +119,23 @@ def get_app_details(app_id):
             app_details = json.load(f)
 
         try:
-            if not hasattr(get_app_details, 'intune_apps'):
-                ps_cmd = 'pwsh -Command "& {. ./IntuneBrew.ps1; Get-IntuneApps | ConvertTo-Json}"'
-                ps_output = subprocess.check_output(ps_cmd, shell=True).decode()
-                get_app_details.intune_apps = json.loads(ps_output)
+            # Get token from request headers
+            token = request.headers.get('Authorization', '').split(' ')[1]
+            
+            # Use Graph API directly
+            uploader = IntuneUploader(token)
+            response = requests.get(
+                f"{uploader.base_url}/deviceAppManagement/mobileApps?$filter=displayName eq '{app_details['name']}'",
+                headers=uploader.headers
+            )
+            
+            intune_apps = response.json().get('value', [])
+            intune_app = next((app for app in intune_apps if app.get('displayName') == app_details['name']), None)
 
-            # Find matching app
-            intune_app = next((app for app in get_app_details.intune_apps if app['Name'] == app_details['name']), None)
+            if intune_app:
+                status = ('Not in Intune' if not intune_app.get('versionNumber') 
+                         else 'Update Available' if app_details['version'] > intune_app['versionNumber']
+                         else 'Up-to-date')
 
             if intune_app:
                 status = ('Not in Intune' if intune_app['IntuneVersion'] == 'Not in Intune'
