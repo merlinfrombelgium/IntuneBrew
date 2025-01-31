@@ -197,10 +197,15 @@ function App() {
                     {apps.map(([id, url]) => (
                         <div key={id} 
                              className="bg-white overflow-hidden shadow rounded-lg p-4 hover:shadow-lg cursor-pointer"
-                             onClick={() => {
-                                 fetch(`/api/app/${id}`)
-                                     .then(res => res.json())
-                                     .then(data => setSelectedApp(data));
+                             onClick={async () => {
+                                 try {
+                                     const res = await fetch(`/api/app/${id}`);
+                                     if (!res.ok) throw new Error('Failed to fetch app details');
+                                     const data = await res.json();
+                                     setSelectedApp(data);
+                                 } catch (error) {
+                                     console.error('Error loading app details:', error);
+                                 }
                              }}>
                             <img src={`/Logos/${id}.png`} 
                                  className="w-16 h-16 object-contain mb-4"
