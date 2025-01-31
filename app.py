@@ -115,7 +115,15 @@ def serve_logo(filename):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+        return render_template('index.html', 
+                             azure_client_id=config['azure']['appId'],
+                             azure_tenant_id=config['azure']['tenantId'])
+    except Exception as e:
+        logger.error(f'Error loading config: {str(e)}')
+        return jsonify({'error': 'Configuration error'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3000)
