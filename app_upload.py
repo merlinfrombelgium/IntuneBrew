@@ -2,6 +2,7 @@
 import json
 import requests
 import os
+import time
 from base64 import b64encode
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding, hashes, hmac
@@ -40,13 +41,24 @@ class IntuneUploader:
             }]
         }
 
-        response = requests.post(
-            f"{self.base_url}/deviceAppManagement/mobileApps",
-            headers=self.headers,
-            json=payload
-        )
+        max_retries = 3
+        retry_delay = 5  # seconds
         
-        if not response.ok:
+        for attempt in range(max_retries):
+            response = requests.post(
+                f"{self.base_url}/deviceAppManagement/mobileApps",
+                headers=self.headers,
+                json=payload
+            )
+            
+            if response.ok:
+                break
+                
+            if response.status_code == 503:
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    continue
+                    
             error_msg = f"Failed to create app: HTTP {response.status_code}"
             try:
                 error_details = response.json()
