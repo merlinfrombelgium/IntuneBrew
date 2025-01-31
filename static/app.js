@@ -124,6 +124,7 @@ function App() {
     const [selectedApp, setSelectedApp] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
     const [appStatuses, setAppStatuses] = React.useState({});
+    const [uploadStates, setUploadStates] = React.useState({});
     const [isAuthenticated, setIsAuthenticated] = React.useState(false);
 
     React.useEffect(() => {
@@ -301,6 +302,21 @@ function App() {
                                         )}
                                     </div>
 
+                                    {uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')] && (
+                                        <div className="mt-2 text-sm">
+                                            <div className="text-gray-600">
+                                                Last {uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].status === 'error' ? 'attempt' : 'updated'}: {
+                                                    new Date(uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].timestamp).toLocaleString()
+                                                }
+                                            </div>
+                                            {uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].status === 'error' && (
+                                                <div className="mt-1 text-red-600">
+                                                    Error details: {uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].error}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <div className="flex items-center space-x-2">
                                         <span className="font-semibold w-24">Bundle ID:</span>
                                         <code className="bg-gray-100 p-2 rounded flex-1">{selectedApp.bundleId || 'Not specified'}</code>
@@ -365,6 +381,11 @@ function App() {
                                         </div>
                                         <button
                                             onClick={async () => {
+                                                const appId = selectedApp.name.toLowerCase().replace(/\s+/g, '_');
+                                                setUploadStates(prev => ({
+                                                    ...prev,
+                                                    [appId]: { status: 'uploading', timestamp: new Date().toISOString() }
+                                                }));
                                                 try {
                                                     const token = await getTokenSilently();
                                                     const response = await fetch('/api/upload', {
@@ -375,16 +396,55 @@ function App() {
                                                         },
                                                         body: JSON.stringify(selectedApp)
                                                     });
-                                                    if (!response.ok) throw new Error('Upload failed');
-                                                    alert('Application uploaded successfully!');
+                                                    if (!response.ok) throw new Error(await response.text());
+                                                    const result = await response.json();
+                                                    setUploadStates(prev => ({
+                                                        ...prev,
+                                                        [appId]: { status: 'success', timestamp: new Date().toISOString() }
+                                                    }));
+                                                    // Refresh Intune status
+                                                    const intuneApps = await getIntuneApps();
+                                                    const newStatuses = {...appStatuses};
+                                                    const intuneApp = intuneApps.find(app => 
+                                                        app.displayName.toLowerCase() === selectedApp.name.toLowerCase()
+                                                    );
+                                                    newStatuses[appId] = {
+                                                        status: intuneApp ? 'Up-to-date' : 'Not in Intune',
+                                                        color: intuneApp ? 'green' : 'red',
+                                                        intuneVersion: intuneApp?.versionNumber || 'Not in Intune'
+                                                    };
+                                                    setAppStatuses(newStatuses);
                                                 } catch (error) {
                                                     console.error('Upload error:', error);
-                                                    alert('Failed to upload application: ' + error.message);
+                                                    setUploadStates(prev => ({
+                                                        ...prev,
+                                                        [appId]: { 
+                                                            status: 'error', 
+                                                            timestamp: new Date().toISOString(),
+                                                            error: error.message
+                                                        }
+                                                    }));
                                                 }
+                                                setSelectedApp(null);
                                             }}
-                                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                            className={`px-4 py-2 rounded ${
+                                                uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'uploading'
+                                                    ? 'bg-gray-400 cursor-not-allowed'
+                                                    : uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'error'
+                                                    ? 'bg-red-600 hover:bg-red-700'
+                                                    : appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'Up-to-date'
+                                                    ? 'bg-gray-600'
+                                                    : 'bg-green-600 hover:bg-green-700'
+                                            } text-white`}
+                                            disabled={uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'uploading'}
                                         >
-                                            Upload to Intune
+                                            {uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'uploading'
+                                                ? 'Uploading...'
+                                                : uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'error'
+                                                ? 'Error - Try again'
+                                                : appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'Up-to-date'
+                                                ? 'Already uploaded'
+                                                : 'Upload to Intune'}
                                         </button>
                                     </div>
                                     <a 
