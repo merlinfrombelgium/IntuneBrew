@@ -46,7 +46,21 @@ class IntuneUploader:
             headers=self.headers,
             json=payload
         )
-        return response.json()
+        
+        if not response.ok:
+            error_msg = f"Failed to create app: HTTP {response.status_code}"
+            try:
+                error_details = response.json()
+                error_msg += f" - {json.dumps(error_details)}"
+            except:
+                error_msg += f" - {response.text}"
+            raise Exception(error_msg)
+            
+        result = response.json()
+        if 'id' not in result:
+            raise Exception("App creation response missing required 'id' field")
+            
+        return result
 
     def encrypt_file(self, file_path):
         """Encrypt the app file for upload"""
