@@ -212,10 +212,10 @@ function App() {
                                      }
                                  }}/>
                             <div>
-                                <h2 className="text-xl font-semibold">{id.replace(/_/g, ' ')}</h2>
+                                <div className="flex flex-col items-center mb-4">
                                 {appStatuses[id] && (
                                     <span 
-                                        className="status-badge mt-2"
+                                        className="status-badge mb-2"
                                         style={{
                                             backgroundColor: appStatuses[id].color === 'red' ? '#FEE2E2' :
                                                            appStatuses[id].color === 'yellow' ? '#FEF3C7' :
@@ -228,6 +228,8 @@ function App() {
                                         {appStatuses[id].status}
                                     </span>
                                 )}
+                                <h2 className="text-xl font-semibold text-center">{id.replace(/_/g, ' ')}</h2>
+                            </div>
                             </div>
                         </div>
                     ))}
