@@ -120,7 +120,14 @@ def get_app_details(app_id):
 
         try:
             # Get token from request headers
-            token = request.headers.get('Authorization', '').split(' ')[1]
+            auth_header = request.headers.get('Authorization', '')
+            if not auth_header:
+                return jsonify({'error': 'No authorization token provided'}), 401
+                
+            try:
+                token = auth_header.split(' ')[1]
+            except IndexError:
+                return jsonify({'error': 'Invalid authorization header format'}), 401
             
             # Use Graph API directly
             uploader = IntuneUploader(token)
