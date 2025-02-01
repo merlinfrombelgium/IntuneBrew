@@ -12,8 +12,16 @@ const msalConfig = {
 
 const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-// Get token using certificate-based auth from our backend
+// Token management
+let cachedToken = null;
+let tokenExpiry = null;
+
 async function getTokenSilently() {
+    // Check if we have a valid cached token
+    if (cachedToken && tokenExpiry && Date.now() < tokenExpiry) {
+        return cachedToken;
+    }
+
     try {
         const response = await fetch('/api/token/', {
             method: 'GET',
@@ -27,7 +35,10 @@ async function getTokenSilently() {
         }
         
         const data = await response.json();
-        return data.access_token;
+        cachedToken = data.access_token;
+        // Set token expiry to 55 minutes (tokens usually valid for 1 hour)
+        tokenExpiry = Date.now() + (55 * 60 * 1000);
+        return cachedToken;
     } catch (error) {
         console.error('Error getting token:', error);
         throw error;
@@ -88,6 +99,39 @@ async function uploadAppToIntune(appInfo) {
   return app;
 }
 
+// Add this before the App component
+function ConfirmDialog({ isOpen, onClose, onConfirm, appName, currentStatus, currentVersion, newVersion }) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
+            <div className="bg-gray-900 text-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+                <h2 className="text-xl font-semibold mb-4">IntuneBrew says</h2>
+                <p className="mb-4">Are you sure you want to update {appName}?</p>
+                <div className="space-y-2 mb-6">
+                    <p>Current status: {currentStatus}</p>
+                    <p>Current version: {currentVersion}</p>
+                    <p>New version: {newVersion}</p>
+                </div>
+                <div className="flex justify-end space-x-4">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 text-gray-300 hover:text-white"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                        OK
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function App() {
     const [apps, setApps] = React.useState([]);
     const [selectedApp, setSelectedApp] = React.useState(null);
@@ -95,6 +139,45 @@ function App() {
     const [appStatuses, setAppStatuses] = React.useState({});
     const [uploadStates, setUploadStates] = React.useState({});
     const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+    const [showConfirmDialog, setShowConfirmDialog] = React.useState(false);
+    const [confirmDialogProps, setConfirmDialogProps] = React.useState(null);
+    const [searchQuery, setSearchQuery] = React.useState('');
+    const [statusFilter, setStatusFilter] = React.useState('all');
+
+    // Group and filter apps
+    const groupedAndFilteredApps = React.useMemo(() => {
+        const groups = {
+            'Needs Update': [],
+            'Up-to-date': [],
+            'Not in Intune': []
+        };
+
+        apps.forEach(([id, url]) => {
+            const status = appStatuses[id]?.status || 'Not in Intune';
+            const appName = id.replace(/_/g, ' ');
+            
+            // Apply search filter
+            if (searchQuery && !appName.toLowerCase().includes(searchQuery.toLowerCase())) {
+                return;
+            }
+
+            // Group apps by status
+            if (status === 'Up-to-date') {
+                groups['Up-to-date'].push([id, url]);
+            } else if (status === 'Not in Intune') {
+                groups['Not in Intune'].push([id, url]);
+            } else {
+                groups['Needs Update'].push([id, url]);
+            }
+        });
+
+        // Filter by status if needed
+        if (statusFilter !== 'all') {
+            return { [statusFilter]: groups[statusFilter] };
+        }
+
+        return groups;
+    }, [apps, appStatuses, searchQuery, statusFilter]);
 
     React.useEffect(() => {
         // Check authentication status
@@ -120,8 +203,9 @@ function App() {
                 const intuneApps = await getIntuneApps();
                 const statuses = {};
                 apps.forEach(([id]) => {
+                    const appName = id.replace(/_/g, ' ');
                     const intuneApp = intuneApps.find(app => 
-                        app.displayName.toLowerCase() === id.toLowerCase());
+                        app.displayName.toLowerCase() === appName.toLowerCase());
                     statuses[id] = {
                         status: intuneApp ? 'Up-to-date' : 'Not in Intune',
                         color: intuneApp ? 'green' : 'red',
@@ -140,8 +224,68 @@ function App() {
 
     const placeholderLogo = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 24 24'%3E%3Cpath fill='%23cccccc' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z'/%3E%3C/svg%3E";
 
+    const handleUpload = async () => {
+        const appId = selectedApp.name.toLowerCase().replace(/\s+/g, '_');
+        
+        setUploadStates(prev => ({
+            ...prev,
+            [appId]: { status: 'uploading', timestamp: new Date().toISOString() }
+        }));
+
+        try {
+            const token = await getTokenSilently();
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    ...selectedApp,
+                    updateExisting: true
+                })
+            });
+            if (!response.ok) throw new Error(await response.text());
+            const result = await response.json();
+            setUploadStates(prev => ({
+                ...prev,
+                [appId]: { status: 'success', timestamp: new Date().toISOString() }
+            }));
+            // Refresh Intune status
+            const intuneApps = await getIntuneApps();
+            const newStatuses = {...appStatuses};
+            const intuneApp = intuneApps.find(app => 
+                app.displayName.toLowerCase() === selectedApp.name.toLowerCase()
+            );
+            newStatuses[appId] = {
+                status: intuneApp ? 'Up-to-date' : 'Not in Intune',
+                color: intuneApp ? 'green' : 'red',
+                intuneVersion: intuneApp?.versionNumber || 'Not in Intune'
+            };
+            setAppStatuses(newStatuses);
+        } catch (error) {
+            console.error('Upload error:', error);
+            setUploadStates(prev => ({
+                ...prev,
+                [appId]: { 
+                    status: 'error', 
+                    timestamp: new Date().toISOString(),
+                    error: error.message
+                }
+            }));
+        }
+        setSelectedApp(null);
+        setShowConfirmDialog(false);
+    };
+
     return (
         <div className="min-h-screen bg-gray-100 relative">
+            <ConfirmDialog
+                isOpen={showConfirmDialog}
+                onClose={() => setShowConfirmDialog(false)}
+                onConfirm={handleUpload}
+                {...confirmDialogProps}
+            />
             <div className="floating-container">
                 {loading ? (
                     <div className="spinner"></div>
@@ -157,70 +301,123 @@ function App() {
                          alt="IntuneBrew Banner" 
                          className="banner" />
                     <div className="text-center mt-4 text-gray-600">
-                        Made with ❤️ by <a href="https://github.com/ugurkocde" className="text-blue-600 hover:text-blue-800">Ugur Koc</a>
+                        Made with ❤️ by <a href="https://github.com/ugurkocde" className="text-blue-600 hover:text-blue-800">Ugur Koc</a> | <a href="https://github.com/ugurkocde/IntuneBrew" className="text-blue-600 hover:text-blue-800">GitHub Repository</a>
                     </div>
                 </div>
             </header>
             <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {apps.map(([id, url]) => (
-                        <div key={id} 
-                             className="bg-white overflow-hidden shadow rounded-lg p-4 hover:shadow-lg cursor-pointer"
-                             onClick={async () => {
-                                 try {
-                                     const token = await getTokenSilently();
-                                     const res = await fetch(`/api/app/${id}`, {
-                                         headers: {
-                                             'Authorization': `Bearer ${token}`
-                                         }
-                                     });
-                                     if (!res.ok) {
-                                         console.error('Server response:', await res.text());
-                                         throw new Error('Failed to fetch app details');
-                                     }
-                                     const data = await res.json();
-                                     setSelectedApp(data);
-                                 } catch (error) {
-                                     console.error('Error loading app details:', error);
-                                     if (error.message.includes('No active account')) {
-                                         await signIn();
-                                     }
-                                 }
-                             }}>
-                            <img src={`/Logos/${id}.png`} 
-                                 className="w-16 h-16 object-contain mb-4"
-                                 onError={(e) => {
-                                     if (!e.target.retryAttempt) {
-                                         e.target.retryAttempt = true;
-                                         e.target.src = placeholderLogo;
-                                         e.target.title = "Logo needed";
-                                     }
-                                 }}/>
-                            <div>
-                                <h2 className="text-xl font-semibold">{id.replace(/_/g, ' ')}</h2>
-                                {appStatuses[id] && (
-                                    <span 
-                                        className="status-badge mt-2"
-                                        style={{
-                                            backgroundColor: appStatuses[id].color === 'red' ? '#FEE2E2' :
-                                                           appStatuses[id].color === 'yellow' ? '#FEF3C7' :
-                                                           '#D1FAE5',
-                                            color: appStatuses[id].color === 'red' ? '#DC2626' :
-                                                   appStatuses[id].color === 'yellow' ? '#D97706' :
-                                                   '#059669'
-                                        }}
-                                    >
-                                        {appStatuses[id].status}
-                                    </span>
-                                )}
+                <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
+                    <div className="relative flex-1">
+                        <input
+                            type="text"
+                            placeholder="Search apps..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setStatusFilter('all')}
+                            className={`px-4 py-2 rounded-lg ${statusFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                        >
+                            All
+                        </button>
+                        <button
+                            onClick={() => setStatusFilter('Needs Update')}
+                            className={`px-4 py-2 rounded-lg ${statusFilter === 'Needs Update' ? 'bg-yellow-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                        >
+                            Needs Update
+                        </button>
+                        <button
+                            onClick={() => setStatusFilter('Up-to-date')}
+                            className={`px-4 py-2 rounded-lg ${statusFilter === 'Up-to-date' ? 'bg-green-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                        >
+                            Up-to-date
+                        </button>
+                        <button
+                            onClick={() => setStatusFilter('Not in Intune')}
+                            className={`px-4 py-2 rounded-lg ${statusFilter === 'Not in Intune' ? 'bg-red-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                        >
+                            Not in Intune
+                        </button>
+                    </div>
+                </div>
+
+                {Object.entries(groupedAndFilteredApps).map(([group, groupApps]) => 
+                    groupApps.length > 0 && (
+                        <div key={group} className="mb-8">
+                            <h2 className="text-xl font-semibold mb-4 text-gray-700">{group} ({groupApps.length})</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {groupApps.map(([id, url]) => (
+                                    <div key={id} 
+                                         className="bg-white overflow-hidden shadow rounded-lg p-4 hover:shadow-lg cursor-pointer"
+                                         onClick={async () => {
+                                             try {
+                                                 const token = await getTokenSilently();
+                                                 const res = await fetch(`/api/app/${id}`, {
+                                                     headers: {
+                                                         'Authorization': `Bearer ${token}`
+                                                     }
+                                                 });
+                                                 if (!res.ok) {
+                                                     console.error('Server response:', await res.text());
+                                                     throw new Error('Failed to fetch app details');
+                                                 }
+                                                 const data = await res.json();
+                                                 setSelectedApp(data);
+                                             } catch (error) {
+                                                 console.error('Error loading app details:', error);
+                                                 if (error.message.includes('No active account')) {
+                                                     await signIn();
+                                                 }
+                                             }
+                                         }}>
+                                        <img src={`/Logos/${id}.png`} 
+                                             className="w-16 h-16 object-contain mb-4"
+                                             onError={(e) => {
+                                                 if (!e.target.retryAttempt) {
+                                                     e.target.retryAttempt = true;
+                                                     e.target.src = placeholderLogo;
+                                                     e.target.title = "Logo needed";
+                                                 }
+                                             }}/>
+                                        <div>
+                                            <h2 className="text-xl font-semibold">{id.replace(/_/g, ' ')}</h2>
+                                            {appStatuses[id] && (
+                                                <span 
+                                                    className="status-badge mt-2"
+                                                    style={{
+                                                        backgroundColor: appStatuses[id].color === 'red' ? '#FEE2E2' :
+                                                                       appStatuses[id].color === 'yellow' ? '#FEF3C7' :
+                                                                       '#D1FAE5',
+                                                        color: appStatuses[id].color === 'red' ? '#DC2626' :
+                                                               appStatuses[id].color === 'yellow' ? '#D97706' :
+                                                               '#059669'
+                                                    }}
+                                                >
+                                                    {appStatuses[id].status}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                    ))}
-                </div>
+                    )
+                )}
 
                 {selectedApp && (
                     <div 
-                        className="fixed inset-0 bg-gray-800 bg-opacity-75 overflow-y-auto h-full w-full z-50 backdrop-blur-sm"
+                        className="fixed inset-0 bg-gray-800 bg-opacity-75 overflow-y-auto h-full w-full z-40 backdrop-blur-sm"
                         onClick={(e) => {
                             if (e.target === e.currentTarget) {
                                 setSelectedApp(null);
@@ -368,56 +565,20 @@ function App() {
                                             onClick={async () => {
                                                 const appId = selectedApp.name.toLowerCase().replace(/\s+/g, '_');
                                                 const currentStatus = appStatuses[appId];
+                                                const isUpdate = currentStatus?.status === 'Up-to-date';
 
-                                                // Check if app is already in Intune with same version
-                                                if (currentStatus?.intuneVersion === selectedApp.version) {
-                                                    return; // Already up to date, do nothing
-                                                }
-
-                                                setUploadStates(prev => ({
-                                                    ...prev,
-                                                    [appId]: { status: 'uploading', timestamp: new Date().toISOString() }
-                                                }));
-                                                try {
-                                                    const token = await getTokenSilently();
-                                                    const response = await fetch('/api/upload', {
-                                                        method: 'POST',
-                                                        headers: {
-                                                            'Content-Type': 'application/json',
-                                                            'Authorization': `Bearer ${token}`
-                                                        },
-                                                        body: JSON.stringify(selectedApp)
+                                                if (isUpdate) {
+                                                    setConfirmDialogProps({
+                                                        appName: selectedApp.name,
+                                                        currentStatus: currentStatus.status,
+                                                        currentVersion: selectedApp.version,
+                                                        newVersion: selectedApp.version
                                                     });
-                                                    if (!response.ok) throw new Error(await response.text());
-                                                    const result = await response.json();
-                                                    setUploadStates(prev => ({
-                                                        ...prev,
-                                                        [appId]: { status: 'success', timestamp: new Date().toISOString() }
-                                                    }));
-                                                    // Refresh Intune status
-                                                    const intuneApps = await getIntuneApps();
-                                                    const newStatuses = {...appStatuses};
-                                                    const intuneApp = intuneApps.find(app => 
-                                                        app.displayName.toLowerCase() === selectedApp.name.toLowerCase()
-                                                    );
-                                                    newStatuses[appId] = {
-                                                        status: intuneApp ? 'Up-to-date' : 'Not in Intune',
-                                                        color: intuneApp ? 'green' : 'red',
-                                                        intuneVersion: intuneApp?.versionNumber || 'Not in Intune'
-                                                    };
-                                                    setAppStatuses(newStatuses);
-                                                } catch (error) {
-                                                    console.error('Upload error:', error);
-                                                    setUploadStates(prev => ({
-                                                        ...prev,
-                                                        [appId]: { 
-                                                            status: 'error', 
-                                                            timestamp: new Date().toISOString(),
-                                                            error: error.message
-                                                        }
-                                                    }));
+                                                    setShowConfirmDialog(true);
+                                                    return;
                                                 }
-                                                setSelectedApp(null);
+
+                                                await handleUpload();
                                             }}
                                             className={`px-4 py-2 rounded ${
                                                 uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'uploading'
@@ -425,19 +586,17 @@ function App() {
                                                     : uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'error'
                                                     ? 'bg-red-600 hover:bg-red-700'
                                                     : appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'Up-to-date'
-                                                    ? 'bg-gray-400 cursor-not-allowed'
+                                                    ? 'bg-blue-600 hover:bg-blue-700'
                                                     : 'bg-green-600 hover:bg-green-700'
                                             } text-white`}
-                                            disabled={uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'uploading' || 
-                                                     (appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'Up-to-date' &&
-                                                      appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.intuneVersion === selectedApp.version)}
+                                            disabled={uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'uploading'}
                                         >
                                             {uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'uploading'
                                                 ? 'Uploading...'
                                                 : uploadStates[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'error'
                                                 ? 'Error - Try again'
                                                 : appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')]?.status === 'Up-to-date'
-                                                ? 'Already uploaded'
+                                                ? 'Update'
                                                 : 'Upload to Intune'}
                                         </button>
                                     </div>
@@ -455,9 +614,6 @@ function App() {
                     </div>
                 )}
             </main>
-            <footer className="text-center py-4 text-gray-600">
-                Made with ❤️ by <a href="https://github.com/ugurkocde" className="text-blue-600 hover:text-blue-800">Ugur Koc</a> | <a href="https://github.com/ugurkocde/IntuneBrew" className="text-blue-600 hover:text-blue-800">GitHub Repository</a>
-            </footer>
         </div>
     );
 }
