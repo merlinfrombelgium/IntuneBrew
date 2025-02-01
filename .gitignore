@@ -1,3 +1,4 @@
-
+.specstory/
+__pycache__/
 attached_assets/*
 config.json

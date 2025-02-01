@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request, send_from_directory, send_file
 import json
 import subprocess
 import os
@@ -6,6 +6,16 @@ import logging
 import time
 import requests
 from app_upload import IntuneUploader
+import io
+import jwt
+import time
+import uuid
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.x509 import load_pem_x509_certificate
+from cryptography.hazmat.backends import default_backend
+import os.path
+import base64
+from pathlib import Path
 
 app = Flask(__name__)
 logging.basicConfig(
@@ -15,13 +25,108 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def expand_path(path):
+    """Expand path with support for ~ on all platforms."""
+    # First use pathlib to handle ~
+    expanded = str(Path(path).expanduser())
+    # Then normalize the path for the current OS
+    return str(Path(expanded).resolve())
+
+@app.route('/api/token/', methods=['GET'])
+def get_token():
+    logger.info('Getting token using certificate authentication')
+    try:
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+        
+        # Load the private key with cross-platform path
+        key_path = expand_path(config['azure']['keyPath'])
+        logger.debug(f'Reading key file from {key_path}')
+        with open(key_path, 'rb') as key_file:
+            key_data = key_file.read()
+            logger.debug(f'Read {len(key_data)} bytes from key file')
+            private_key = serialization.load_pem_private_key(
+                key_data,
+                password=None,
+                backend=default_backend()
+            )
+            logger.debug('Successfully loaded PEM private key')
+        
+        # Load the certificate with cross-platform path
+        cert_path = expand_path(config['azure']['certificatePath'])
+        logger.debug(f'Reading certificate from {cert_path}')
+        with open(cert_path, 'rb') as cert_file:
+            cert_data = cert_file.read()
+            logger.debug(f'Read {len(cert_data)} bytes from certificate file')
+            cert = load_pem_x509_certificate(cert_data, default_backend())
+            logger.debug('Successfully loaded PEM certificate')
+        
+        # Get the certificate thumbprint using SHA1 (which is what Azure uses)
+        cert_bytes = cert.fingerprint(hashes.SHA1())
+        thumbprint = ''.join([f'{b:02X}' for b in cert_bytes])
+        logger.debug(f'Certificate thumbprint (SHA1): {thumbprint}')
+        
+        # Create the JWT header with the certificate thumbprint
+        header = {
+            'alg': 'RS256',
+            'typ': 'JWT',
+            'x5t': base64.b64encode(cert_bytes).decode('utf-8').rstrip('=')
+        }
+        
+        # Create the JWT payload
+        now = int(time.time())
+        payload = {
+            'aud': f'https://login.microsoftonline.com/{config["azure"]["tenantId"]}/oauth2/v2.0/token',
+            'exp': now + 3600,
+            'iss': config['azure']['appId'],
+            'jti': str(uuid.uuid4()),
+            'nbf': now,
+            'sub': config['azure']['appId']
+        }
+        
+        # Create the client assertion
+        client_assertion = jwt.encode(
+            payload,
+            private_key,
+            algorithm='RS256',
+            headers=header
+        )
+        
+        # Get the token from Azure AD
+        token_url = f'https://login.microsoftonline.com/{config["azure"]["tenantId"]}/oauth2/v2.0/token'
+        token_data = {
+            'client_id': config['azure']['appId'],
+            'client_assertion': client_assertion,
+            'client_assertion_type': 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+            'scope': 'https://graph.microsoft.com/.default',
+            'grant_type': 'client_credentials'
+        }
+        
+        logger.debug('Requesting token from Azure AD')
+        response = requests.post(token_url, data=token_data)
+        if response.status_code != 200:
+            logger.error(f'Token request failed: {response.text}')
+            return jsonify({'error': 'Failed to get token'}), response.status_code
+            
+        token_response = response.json()
+        logger.debug('Successfully obtained token')
+        return jsonify({
+            'access_token': token_response['access_token'],
+            'expires_in': token_response['expires_in'],
+            'token_type': token_response['token_type']
+        })
+        
+    except Exception as e:
+        logger.error(f'Error getting token: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/apps')
 def get_apps():
     logger.info('Fetching supported apps')
     try:
         with open('supported_apps.json', 'r') as f:
             apps = json.load(f)
-        logger.debug(f'Found {len(apps)} supported apps')
+        logger.info(f'Found {len(apps)} supported apps')
         return jsonify(apps)
     except Exception as e:
         logger.error(f'Error loading supported apps: {str(e)}')
@@ -158,11 +263,15 @@ def serve_logo(filename):
     try:
         return send_from_directory('Logos', filename)
     except:
-        # Return a transparent 1x1 pixel PNG for missing logos
-        empty_pixel = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
-        return send_from_directory('static', 'empty.png') if os.path.exists('static/empty.png') else (empty_pixel.decode('base64'), 200, {'Content-Type': 'image/png'})
-
-
+        # If logo doesn't exist, return the placeholder image
+        if os.path.exists('static/empty.png'):
+            return send_from_directory('static', 'empty.png')
+        else:
+            # If even the placeholder is missing, return a minimal 1x1 transparent PNG
+            return send_file(
+                io.BytesIO(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x00\x00\x02\x00\x01\xe5\x27\xde\xfc\x00\x00\x00\x00IEND\xaeB`\x82'),
+                mimetype='image/png'
+            )
 
 @app.route('/')
 def index():

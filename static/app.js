@@ -2,8 +2,7 @@
 const msalConfig = {
   auth: {
     clientId: window.AZURE_CLIENT_ID || '',
-    authority: `https://login.microsoftonline.com/${window.AZURE_TENANT_ID || ''}`,
-    redirectUri: window.location.origin,
+    authority: `https://login.microsoftonline.com/${window.AZURE_TENANT_ID || ''}`
   },
   cache: {
     cacheLocation: "sessionStorage",
@@ -13,64 +12,34 @@ const msalConfig = {
 
 const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-// Handle the redirect promise
-msalInstance.handleRedirectPromise().catch(err => {
-    console.error(err);
-});
-
-// Login function
-async function signIn() {
-    try {
-        const loginRequest = {
-            scopes: ["DeviceManagementApps.ReadWrite.All"]
-        };
-        await msalInstance.loginPopup(loginRequest);
-        window.location.reload();
-    } catch (err) {
-        console.error("Login failed:", err);
-    }
-}
-
-// Check if user is authenticated
-function getAccount() {
-    const currentAccounts = msalInstance.getAllAccounts();
-    if (currentAccounts.length === 0) {
-        signIn();
-        return null;
-    } else if (currentAccounts.length > 1) {
-        console.warn("Multiple accounts detected.");
-        return currentAccounts[0];
-    } else {
-        return currentAccounts[0];
-    }
-}
-
-const graphScopes = ['DeviceManagementApps.ReadWrite.All'];
-
+// Get token using certificate-based auth from our backend
 async function getTokenSilently() {
-    const account = getAccount();
-    if (!account) {
-        throw new Error('No active account');
-    }
-
     try {
-        const response = await msalInstance.acquireTokenSilent({
-            scopes: graphScopes,
-            account: account
+        const response = await fetch('/api/token/', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
-        return response.accessToken;
-    } catch (error) {
-        if (error instanceof msal.InteractionRequiredAuthError) {
-            return msalInstance.acquireTokenPopup({
-                scopes: graphScopes,
-                account: account
-            }).then(response => {
-                return response.accessToken;
-            });
+        
+        if (!response.ok) {
+            throw new Error('Failed to get token');
         }
+        
+        const data = await response.json();
+        return data.access_token;
+    } catch (error) {
+        console.error('Error getting token:', error);
         throw error;
     }
 }
+
+// Since we're using certificate auth, we don't need interactive login
+function getAccount() {
+    return true; // Certificate auth is always "logged in"
+}
+
+const graphScopes = ['https://graph.microsoft.com/.default'];
 
 async function callGraphAPI(endpoint, method = 'GET', body = null) {
   const token = await getTokenSilently();
