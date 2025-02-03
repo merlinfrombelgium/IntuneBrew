@@ -2,3 +2,4 @@
 __pycache__/
 attached_assets/*
 config.json
+last_check.json
