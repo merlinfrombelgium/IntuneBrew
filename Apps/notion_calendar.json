@@ -1,11 +1,11 @@
 {
-  "name": "Notion Calendar",
-  "description": "Calendar for professionals and teams",
-  "version": "1.126.0,250106suuhlwrt4",
-  "url": "https://intunebrew.blob.core.windows.net/pkg/notion_calendar_1.126.0,250106suuhlwrt4.pkg",
-  "bundleId": null,
-  "homepage": "https://www.notion.so/product/calendar",
-  "fileName": "notion_calendar_1.126.0,250106suuhlwrt4.pkg",
-  "type": "app",
-  "previous_version": "1.126.0,250106suuhlwrt4"
+    "name": "Notion Calendar",
+    "description": "Calendar for professionals and teams",
+    "version": "1.127.0,250121ji52u08fs",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/notion_calendar_1.127.0,250121ji52u08fs.pkg",
+    "bundleId": "com.cron.electron",
+    "homepage": "https://www.notion.so/product/calendar",
+    "fileName": "notion_calendar_1.127.0,250121ji52u08fs.pkg",
+    "type": "app",
+    "previous_version": "1.127.0,250121ji52u08fs"
 }

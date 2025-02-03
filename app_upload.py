@@ -3,10 +3,13 @@ import requests
 import os
 import time
 import subprocess
+import logging
 from base64 import b64encode
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding, hashes, hmac
 import random
+
+logger = logging.getLogger(__name__)
 
 class IntuneUploader:
     def __init__(self, access_token):
@@ -387,52 +390,84 @@ class IntuneUploader:
             
             print("File upload completed")
 
-            # Commit the file
+            # Commit the file with retries
             print("Committing file...")
-            commit_response = requests.post(
-                f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.{app_type}/contentVersions/{content_version['id']}/files/{content_file['id']}/commit",
-                headers=self.headers,
-                json={"fileEncryptionInfo": encryption_info}
-            )
-            if not commit_response.ok:
-                print(f"Commit request failed: {commit_response.status_code}")
+            max_commit_retries = 3
+            commit_success = False
+            
+            for commit_attempt in range(max_commit_retries):
                 try:
-                    error_details = commit_response.json()
-                    print(f"Commit error details: {json.dumps(error_details, indent=2)}")
-                except:
-                    print(f"Commit error text: {commit_response.text}")
-                raise Exception("File commit request failed")
-            print("File commit request sent successfully")
+                    print(f"Commit attempt {commit_attempt + 1}/{max_commit_retries}")
+                    commit_response = requests.post(
+                        f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.{app_type}/contentVersions/{content_version['id']}/files/{content_file['id']}/commit",
+                        headers=self.headers,
+                        json={"fileEncryptionInfo": encryption_info}
+                    )
+                    
+                    if commit_response.ok:
+                        print("File commit request sent successfully")
+                        commit_success = True
+                        break
+                    else:
+                        print(f"Commit request failed (attempt {commit_attempt + 1}): {commit_response.status_code}")
+                        try:
+                            error_details = commit_response.json()
+                            print(f"Commit error details: {json.dumps(error_details, indent=2)}")
+                        except:
+                            print(f"Commit error text: {commit_response.text}")
+                    
+                    if commit_attempt < max_commit_retries - 1:
+                        print("Waiting 30 seconds before retry...")
+                        time.sleep(30)  # Longer wait between commit retries
+                except Exception as e:
+                    print(f"Commit attempt {commit_attempt + 1} failed with error: {str(e)}")
+                    if commit_attempt < max_commit_retries - 1:
+                        print("Waiting 30 seconds before retry...")
+                        time.sleep(30)
 
-            # Wait for file commit to complete
+            if not commit_success:
+                raise Exception("File commit failed after all retry attempts")
+
+            # Wait for file commit to complete with extended timeout
             print("Waiting for file commit to complete...")
-            max_attempts = 60  # 5 minutes total
-            for attempt in range(max_attempts):
+            max_status_checks = 120  # 20 minutes total (increased from 5 minutes)
+            commit_completed = False
+            
+            for attempt in range(max_status_checks):
                 status = requests.get(
                     f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.{app_type}/contentVersions/{content_version['id']}/files/{content_file['id']}",
                     headers=self.headers
                 ).json()
                 
                 print(f"File status (attempt {attempt + 1}): {status.get('uploadState', 'unknown')}")
+                print(f"Full status response: {json.dumps(status, indent=2)}")
                 
                 if status.get('uploadState') == 'commitFileSuccess':
                     print("File commit succeeded!")
+                    commit_completed = True
                     break
-                    
+                
                 if status.get('uploadState') == 'commitFileFailed':
-                    try:
-                        print(f"Full status response: {json.dumps(status, indent=2)}")
-                    except:
-                        print(f"Full status response: {status}")
-                    raise Exception("File commit failed")
-                    
-                if attempt < max_attempts - 1:
-                    print("Waiting 5 seconds before next check...")
-                    time.sleep(5)  # Wait 5 seconds between checks
-                else:
-                    raise Exception("Timeout waiting for file commit to complete")
+                    if attempt < max_status_checks - 1:
+                        print("Commit failed, retrying commit operation...")
+                        # Try to commit again
+                        commit_response = requests.post(
+                            f"{self.base_url}/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.{app_type}/contentVersions/{content_version['id']}/files/{content_file['id']}/commit",
+                            headers=self.headers,
+                            json={"fileEncryptionInfo": encryption_info}
+                        )
+                        print(f"Recommit response: {commit_response.status_code}")
+                    else:
+                        raise Exception("File commit failed")
+                
+                if attempt < max_status_checks - 1:
+                    print("Waiting 10 seconds before next check...")
+                    time.sleep(10)  # Increased wait time between status checks
+            
+            if not commit_completed:
+                raise Exception("Timeout waiting for file commit to complete")
 
-            return content_version['id']  # Only return the content version ID
+            return content_version['id']
         except Exception as e:
             raise Exception(f"Error during file upload: {str(e)}")
 
@@ -445,7 +480,7 @@ class IntuneUploader:
             
             # Check if we have a local logo file
             if not os.path.exists(logo_path):
-                print(f"No logo found at {logo_path}, skipping logo upload")
+                logger.info(f"No logo found at {logo_path}, skipping logo upload")
                 return
             
             # Read the local logo file
@@ -482,6 +517,7 @@ class IntuneUploader:
                     logger.warning(f"Error text: {response.text}")
         except Exception as e:
             logger.warning(f"Could not add app logo. Error: {str(e)}")
+            # Don't raise the exception - logo upload is optional
 
     def finalize_upload(self, app_id, app_type, content_version_id):
         """Finalize the app upload"""

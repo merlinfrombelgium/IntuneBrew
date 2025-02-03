@@ -73,10 +73,54 @@ async function callGraphAPI(endpoint, method = 'GET', body = null) {
 }
 
 async function getIntuneApps() {
-  const response = await callGraphAPI('/deviceAppManagement/mobileApps');
-  return response.value.filter(app => 
-    app['@odata.type']?.includes('macOS')
-  );
+  const response = await callGraphAPI('/deviceAppManagement/mobileApps?$filter=(isof(\'microsoft.graph.macOSDmgApp\') or isof(\'microsoft.graph.macOSPkgApp\'))');
+  console.log('Raw Graph API response:', JSON.stringify(response, null, 2));
+  return response.value;
+}
+
+// Cache for Intune apps
+let intuneAppsCache = null;
+let lastFetchTime = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+async function getIntuneAppsCached() {
+  const now = Date.now();
+  if (!intuneAppsCache || !lastFetchTime || (now - lastFetchTime) > CACHE_DURATION) {
+    console.log('Fetching fresh Intune apps data...');
+    intuneAppsCache = await getIntuneApps();
+    lastFetchTime = now;
+  } else {
+    console.log('Using cached Intune apps data');
+  }
+  return intuneAppsCache;
+}
+
+async function refreshIntuneCache() {
+  console.log('Forcing refresh of Intune apps cache...');
+  intuneAppsCache = await getIntuneApps();
+  lastFetchTime = Date.now();
+  return intuneAppsCache;
+}
+
+async function getSpecificIntuneApp(appName) {
+  const apps = await getIntuneAppsCached();
+  // Find all versions of the app
+  const appVersions = apps.filter(app => app.displayName.toLowerCase() === appName.toLowerCase());
+  
+  if (appVersions.length === 0) return null;
+  if (appVersions.length === 1) return appVersions[0];
+  
+  // Sort by lastModifiedDateTime and primaryBundleVersion to get the latest version
+  return appVersions.sort((a, b) => {
+    // First try to compare by lastModifiedDateTime
+    const dateA = new Date(a.lastModifiedDateTime);
+    const dateB = new Date(b.lastModifiedDateTime);
+    if (dateA > dateB) return -1;
+    if (dateA < dateB) return 1;
+    
+    // If dates are equal, compare versions
+    return compareVersions(b.primaryBundleVersion, a.primaryBundleVersion);
+  })[0];
 }
 
 async function uploadAppToIntune(appInfo) {
@@ -143,10 +187,13 @@ function App() {
     const [confirmDialogProps, setConfirmDialogProps] = React.useState(null);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [statusFilter, setStatusFilter] = React.useState('all');
+    const [newApps, setNewApps] = React.useState([]);
+    const [cachedLogos, setCachedLogos] = React.useState({});
 
     // Group and filter apps
     const groupedAndFilteredApps = React.useMemo(() => {
         const groups = {
+            'New ⭐': [],
             'Needs Update': [],
             'Up-to-date': [],
             'Not in Intune': []
@@ -158,6 +205,12 @@ function App() {
             
             // Apply search filter
             if (searchQuery && !appName.toLowerCase().includes(searchQuery.toLowerCase())) {
+                return;
+            }
+
+            // Check if app is new
+            if (newApps.includes(id)) {
+                groups['New ⭐'].push([id, url]);
                 return;
             }
 
@@ -177,7 +230,7 @@ function App() {
         }
 
         return groups;
-    }, [apps, appStatuses, searchQuery, statusFilter]);
+    }, [apps, appStatuses, searchQuery, statusFilter, newApps]);
 
     React.useEffect(() => {
         // Check authentication status
@@ -200,18 +253,90 @@ function App() {
 
             setLoading(true);
             try {
-                const intuneApps = await getIntuneApps();
+                const intuneApps = await getIntuneAppsCached();
                 const statuses = {};
-                apps.forEach(([id]) => {
+                
+                for (const [id] of apps) {
                     const appName = id.replace(/_/g, ' ');
-                    const intuneApp = intuneApps.find(app => 
-                        app.displayName.toLowerCase() === appName.toLowerCase());
-                    statuses[id] = {
-                        status: intuneApp ? 'Up-to-date' : 'Not in Intune',
-                        color: intuneApp ? 'green' : 'red',
-                        intuneVersion: intuneApp?.versionNumber || 'Not in Intune'
-                    };
-                });
+                    console.log(`\nChecking app: ${appName}`);
+                    
+                    // Find all versions of the app
+                    const appVersions = intuneApps.filter(app => 
+                        app.displayName.toLowerCase() === appName.toLowerCase()
+                    );
+                    console.log('Found versions in Intune:', appVersions.map(app => ({
+                        version: app.primaryBundleVersion,
+                        modified: app.lastModifiedDateTime
+                    })));
+                    
+                    // Get the latest version by comparing version numbers and lastModifiedDateTime
+                    const intuneApp = appVersions.sort((a, b) => {
+                        // First compare version numbers
+                        const versionComparison = compareVersions(b.primaryBundleVersion, a.primaryBundleVersion);
+                        if (versionComparison !== 0) return versionComparison;
+                        
+                        // If versions are equal, use lastModifiedDateTime
+                        const dateA = new Date(a.lastModifiedDateTime);
+                        const dateB = new Date(b.lastModifiedDateTime);
+                        return dateB - dateA;
+                    })[0];
+                    
+                    console.log('Found in Intune:', intuneApp ? 'Yes' : 'No');
+                    if (intuneApp) {
+                        console.log('Latest Intune version:', intuneApp.primaryBundleVersion);
+                        console.log('Last modified:', intuneApp.lastModifiedDateTime);
+                        
+                        // Log if there are multiple versions
+                        if (appVersions.length > 1) {
+                            console.log('Warning: Multiple versions found in Intune:', 
+                                appVersions.map(app => `${app.primaryBundleVersion} (${app.lastModifiedDateTime})`));
+                        }
+                    }
+                    
+                    // Get the local app version
+                    const localAppResponse = await fetch(`/api/app/${id}`);
+                    const localApp = await localAppResponse.json();
+                    const localVersion = localApp.version;
+                    console.log('Local version:', localVersion);
+                    
+                    if (intuneApp) {
+                        // Compare versions
+                        const intuneVersion = intuneApp.primaryBundleVersion || 'Not available';
+                        console.log('Comparing versions:', {
+                            intuneVersion,
+                            localVersion,
+                            intuneVersionRaw: intuneApp.primaryBundleVersion,
+                            lastModified: intuneApp.lastModifiedDateTime
+                        });
+                        
+                        const comparison = compareVersions(intuneVersion, localVersion);
+                        const needsUpdate = comparison < 0;
+                        console.log('Version comparison result:', {
+                            comparison,
+                            needsUpdate
+                        });
+                        
+                        statuses[id] = {
+                            status: needsUpdate ? 'Needs Update' : 'Up-to-date',
+                            color: needsUpdate ? 'yellow' : 'green',
+                            intuneVersion: intuneVersion,
+                            lastModified: intuneApp.lastModifiedDateTime,
+                            multipleVersions: appVersions.length > 1 ? appVersions.map(app => ({
+                                version: app.primaryBundleVersion,
+                                modified: app.lastModifiedDateTime
+                            })) : null
+                        };
+                        console.log('Set status:', statuses[id]);
+                    } else {
+                        statuses[id] = {
+                            status: 'Not in Intune',
+                            color: 'red',
+                            intuneVersion: 'Not in Intune'
+                        };
+                        console.log('Set status: Not in Intune');
+                    }
+                }
+                console.log('\nFinal statuses:', statuses);
                 setAppStatuses(statuses);
             } catch (error) {
                 console.error('Error fetching Intune status:', error);
@@ -219,8 +344,125 @@ function App() {
             setLoading(false);
         }
 
-        fetchIntuneStatus();
+        if (apps.length > 0) {
+            fetchIntuneStatus();
+        }
     }, [isAuthenticated, apps]);
+
+    // Update the version comparison function to be more robust
+    function compareVersions(ver1, ver2) {
+        console.log('\nComparing versions:', { ver1, ver2 });
+        
+        // Handle undefined, null, or special values
+        if (!ver1 || !ver2 || ver1 === 'Not available' || ver1 === 'Not in Intune') {
+            console.log('Special case detected:', { ver1, ver2 });
+            return 0;
+        }
+        
+        try {
+            // Handle complex version strings (e.g., "1.2.3,45678" or "1.2.3-beta")
+            const cleanVer1 = ver1.split(/[,\-]/)[0].trim();
+            const cleanVer2 = ver2.split(/[,\-]/)[0].trim();
+            console.log('Cleaned versions:', { cleanVer1, cleanVer2 });
+            
+            const parts1 = cleanVer1.split('.');
+            const parts2 = cleanVer2.split('.');
+            console.log('Version parts:', { parts1, parts2 });
+            
+            // Compare each part numerically
+            const maxLength = Math.max(parts1.length, parts2.length);
+            for (let i = 0; i < maxLength; i++) {
+                const num1 = parseInt(parts1[i] || '0', 10);
+                const num2 = parseInt(parts2[i] || '0', 10);
+                console.log(`Comparing part ${i}:`, { num1, num2 });
+                
+                if (isNaN(num1) || isNaN(num2)) {
+                    console.warn('Invalid version number:', { ver1, ver2, part1: parts1[i], part2: parts2[i] });
+                    continue;
+                }
+                
+                if (num1 > num2) {
+                    console.log(`${num1} > ${num2}, returning 1`);
+                    return 1;  // ver1 is newer
+                }
+                if (num1 < num2) {
+                    console.log(`${num1} < ${num2}, returning -1`);
+                    return -1; // ver2 is newer
+                }
+            }
+            
+            console.log('Versions are equal, returning 0');
+            return 0; // versions are equal
+        } catch (error) {
+            console.error('Version comparison error:', error, { ver1, ver2 });
+            return 0; // Return equal if comparison fails
+        }
+    }
+
+    // Add logo caching
+    const getLogoUrl = React.useCallback((id) => {
+        if (cachedLogos[id]) {
+            return cachedLogos[id];
+        }
+        return `/Logos/${id}.png`;
+    }, [cachedLogos]);
+
+    // Load and cache logos on initial load and refresh
+    const cacheLogos = React.useCallback(async () => {
+        const newCache = {};
+        for (const [id] of apps) {
+            try {
+                const response = await fetch(`/Logos/${id}.png`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    newCache[id] = URL.createObjectURL(blob);
+                }
+            } catch (error) {
+                console.error(`Error caching logo for ${id}:`, error);
+            }
+        }
+        setCachedLogos(newCache);
+    }, [apps]);
+
+    // Clean up object URLs on unmount
+    React.useEffect(() => {
+        return () => {
+            Object.values(cachedLogos).forEach(url => {
+                URL.revokeObjectURL(url);
+            });
+        };
+    }, [cachedLogos]);
+
+    // Load logos when apps are loaded
+    React.useEffect(() => {
+        if (apps.length > 0) {
+            cacheLogos();
+        }
+    }, [apps, cacheLogos]);
+
+    // Update the refresh button click handler
+    const handleRefresh = async () => {
+        setLoading(true);
+        await refreshIntuneCache(); // Force refresh of Intune data
+        await cacheLogos(); // Refresh logo cache
+        setLoading(false);
+    };
+
+    // Add this effect to check for updates
+    React.useEffect(() => {
+        async function checkUpdates() {
+            try {
+                const response = await fetch('/api/updates/check');
+                const data = await response.json();
+                if (data.added_apps && data.added_apps.length > 0) {
+                    setNewApps(data.added_apps);
+                }
+            } catch (error) {
+                console.error('Error checking updates:', error);
+            }
+        }
+        checkUpdates();
+    }, []);
 
     const placeholderLogo = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 24 24'%3E%3Cpath fill='%23cccccc' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z'/%3E%3C/svg%3E";
 
@@ -251,16 +493,14 @@ function App() {
                 ...prev,
                 [appId]: { status: 'success', timestamp: new Date().toISOString() }
             }));
-            // Refresh Intune status
-            const intuneApps = await getIntuneApps();
+            
+            // Only refresh the specific app's status
+            const intuneApp = await getSpecificIntuneApp(selectedApp.name);
             const newStatuses = {...appStatuses};
-            const intuneApp = intuneApps.find(app => 
-                app.displayName.toLowerCase() === selectedApp.name.toLowerCase()
-            );
             newStatuses[appId] = {
                 status: intuneApp ? 'Up-to-date' : 'Not in Intune',
                 color: intuneApp ? 'green' : 'red',
-                intuneVersion: intuneApp?.versionNumber || 'Not in Intune'
+                intuneVersion: intuneApp?.primaryBundleVersion || 'Not in Intune'
             };
             setAppStatuses(newStatuses);
         } catch (error) {
@@ -280,17 +520,14 @@ function App() {
 
     return (
         <div className="min-h-screen bg-gray-100 relative">
-            <ConfirmDialog
-                isOpen={showConfirmDialog}
-                onClose={() => setShowConfirmDialog(false)}
-                onConfirm={handleUpload}
-                {...confirmDialogProps}
-            />
             <div className="floating-container">
                 {loading ? (
                     <div className="spinner"></div>
                 ) : (
-                    <button onClick={() => {setLoading(true); getIntuneApps().then(()=>setLoading(false));}} className="refresh-button">
+                    <button 
+                        onClick={handleRefresh}
+                        className="refresh-button"
+                    >
                         🔄
                     </button>
                 )}
@@ -356,10 +593,10 @@ function App() {
                     groupApps.length > 0 && (
                         <div key={group} className="mb-8">
                             <h2 className="text-xl font-semibold mb-4 text-gray-700">{group} ({groupApps.length})</h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                                 {groupApps.map(([id, url]) => (
                                     <div key={id} 
-                                         className="bg-white overflow-hidden shadow rounded-lg p-4 hover:shadow-lg cursor-pointer"
+                                         className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg cursor-pointer relative h-[120px]"
                                          onClick={async () => {
                                              try {
                                                  const token = await getTokenSilently();
@@ -381,32 +618,31 @@ function App() {
                                                  }
                                              }
                                          }}>
-                                        <img src={`/Logos/${id}.png`} 
-                                             className="w-16 h-16 object-contain mb-4"
-                                             onError={(e) => {
-                                                 if (!e.target.retryAttempt) {
-                                                     e.target.retryAttempt = true;
-                                                     e.target.src = placeholderLogo;
-                                                     e.target.title = "Logo needed";
-                                                 }
-                                             }}/>
-                                        <div>
-                                            <h2 className="text-xl font-semibold">{id.replace(/_/g, ' ')}</h2>
-                                            {appStatuses[id] && (
-                                                <span 
-                                                    className="status-badge mt-2"
-                                                    style={{
-                                                        backgroundColor: appStatuses[id].color === 'red' ? '#FEE2E2' :
-                                                                       appStatuses[id].color === 'yellow' ? '#FEF3C7' :
-                                                                       '#D1FAE5',
-                                                        color: appStatuses[id].color === 'red' ? '#DC2626' :
-                                                               appStatuses[id].color === 'yellow' ? '#D97706' :
-                                                               '#059669'
-                                                    }}
-                                                >
-                                                    {appStatuses[id].status}
-                                                </span>
-                                            )}
+                                        {/* Status Triangle */}
+                                        <div 
+                                            className="absolute top-0 right-0 w-8 h-8"
+                                            style={{
+                                                background: `linear-gradient(45deg, transparent 50%, ${
+                                                    appStatuses[id]?.color === 'red' ? '#DC2626' :
+                                                    appStatuses[id]?.color === 'yellow' ? '#D97706' :
+                                                    '#059669'
+                                                } 50%)`
+                                            }}
+                                        />
+                                        
+                                        <div className="p-3 flex items-center space-x-3 h-full">
+                                            <img src={getLogoUrl(id)} 
+                                                 className="w-12 h-12 object-contain flex-shrink-0"
+                                                 onError={(e) => {
+                                                     if (!e.target.retryAttempt) {
+                                                         e.target.retryAttempt = true;
+                                                         e.target.src = placeholderLogo;
+                                                         e.target.title = "Logo needed";
+                                                     }
+                                                 }}/>
+                                            <h2 className="text-sm font-medium truncate">
+                                                {id.replace(/_/g, ' ')}
+                                            </h2>
                                         </div>
                                     </div>
                                 ))}
@@ -428,7 +664,7 @@ function App() {
                             <div className="flex justify-between items-center mb-6">
                                 <div className="flex items-center gap-4">
                                     <img 
-                                        src={`/Logos/${selectedApp.name.toLowerCase().replace(/\s+/g, '_')}.png`}
+                                        src={getLogoUrl(selectedApp.name.toLowerCase().replace(/\s+/g, '_'))}
                                         onError={(e) => {
                                             e.target.onerror = null;
                                             e.target.src = placeholderLogo;
@@ -472,6 +708,7 @@ function App() {
                                                     >
                                                         {appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].status}
                                                         {appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].intuneVersion !== 'Not in Intune' && 
+                                                         appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].intuneVersion !== 'Not available' && 
                                                             ` (${appStatuses[selectedApp.name.toLowerCase().replace(/\s+/g, '_')].intuneVersion})`}
                                                     </span>
                                                 </div>
@@ -614,6 +851,12 @@ function App() {
                     </div>
                 )}
             </main>
+            <ConfirmDialog
+                isOpen={showConfirmDialog}
+                onClose={() => setShowConfirmDialog(false)}
+                onConfirm={handleUpload}
+                {...confirmDialogProps}
+            />
         </div>
     );
 }

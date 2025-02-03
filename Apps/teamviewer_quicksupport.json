@@ -1,10 +1,10 @@
 {
-  "name": "TeamViewer QuickSupport",
-  "description": "Remote support for computers and mobile devices",
-  "version": "15",
-  "url": "https://dl.teamviewer.com/download/version_15x/TeamViewerQS.dmg",
-  "bundleId": "com.teamviewer.TeamViewerQS",
-  "homepage": "https://www.teamviewer.com/",
-  "fileName": "TeamViewerQS.dmg",
-  "previous_version": "15"
+    "name": "TeamViewer QuickSupport",
+    "description": "Remote support for computers and mobile devices",
+    "version": "15",
+    "url": "https://dl.teamviewer.com/download/version_15x/TeamViewerQS.dmg",
+    "bundleId": "com.teamviewer.TeamViewerQS",
+    "homepage": "https://www.teamviewer.com/",
+    "fileName": "TeamViewerQS.dmg",
+    "previous_version": "15"
 }

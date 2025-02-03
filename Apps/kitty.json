@@ -1,0 +1,10 @@
+{
+    "name": "kitty",
+    "description": "GPU-based terminal emulator",
+    "version": "0.39.1",
+    "url": "https://github.com/kovidgoyal/kitty/releases/download/v0.39.1/kitty-0.39.1.dmg",
+    "bundleId": "net.kovidgoyal.kitty",
+    "homepage": "https://github.com/kovidgoyal/kitty",
+    "fileName": "kitty-0.39.1.dmg",
+    "previous_version": "0.39.1"
+}

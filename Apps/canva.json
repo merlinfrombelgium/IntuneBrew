@@ -1,10 +1,10 @@
 {
-  "name": "Canva",
-  "description": "Design tool",
-  "version": "1.102.0",
-  "url": "https://desktop-release.canva.com/Canva-1.102.0-universal.dmg",
-  "bundleId": "com.canva.CanvaDesktop",
-  "homepage": "https://www.canva.com/",
-  "fileName": "Canva-1.102.0-universal.dmg",
-  "previous_version": "1.102.0"
+    "name": "Canva",
+    "description": "Design tool",
+    "version": "1.102.0",
+    "url": "https://desktop-release.canva.com/Canva-1.102.0-universal.dmg",
+    "bundleId": "com.canva.CanvaDesktop",
+    "homepage": "https://www.canva.com/",
+    "fileName": "Canva-1.102.0-universal.dmg",
+    "previous_version": "1.102.0"
 }

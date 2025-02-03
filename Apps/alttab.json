@@ -1,0 +1,11 @@
+{
+    "name": "AltTab",
+    "description": "Enable Windows-like alt-tab",
+    "version": "7.19.1",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/alttab_7.19.1.pkg",
+    "bundleId": "com.lwouis.alt-tab-macos",
+    "homepage": "https://alt-tab-macos.netlify.app/",
+    "fileName": "alttab_7.19.1.pkg",
+    "type": "app",
+    "previous_version": "7.19.1"
+}

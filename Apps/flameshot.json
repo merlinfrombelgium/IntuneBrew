@@ -1,0 +1,10 @@
+{
+    "name": "Flameshot",
+    "description": "Screenshot software",
+    "version": "12.1.0",
+    "url": "https://github.com/flameshot-org/flameshot/releases/download/v12.1.0/flameshot.dmg",
+    "bundleId": "com.Flameshot.flameshot",
+    "homepage": "https://flameshot.org/",
+    "fileName": "flameshot.dmg",
+    "previous_version": "12.1.0"
+}

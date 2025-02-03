@@ -1,10 +1,10 @@
 {
-  "name": "iMazing",
-  "description": "iPhone management application",
-  "version": "3.0.6,21166",
-  "url": "https://downloads.imazing.com/mac/iMazing/3.0.6.21166/iMazing_3.0.6.21166.dmg",
-  "bundleId": "com.DigiDNA.iMazing3.0.6.21166Mac",
-  "homepage": "https://imazing.com/",
-  "fileName": "iMazing_3.0.6.21166.dmg",
-  "previous_version": "3.0.6,21166"
+    "name": "iMazing",
+    "description": "iPhone management application",
+    "version": "3.0.6,21166",
+    "url": "https://downloads.imazing.com/mac/iMazing/3.0.6.21166/iMazing_3.0.6.21166.dmg",
+    "bundleId": "com.DigiDNA.iMazing3.0.6.21166Mac",
+    "homepage": "https://imazing.com/",
+    "fileName": "iMazing_3.0.6.21166.dmg",
+    "previous_version": "3.0.6,21166"
 }

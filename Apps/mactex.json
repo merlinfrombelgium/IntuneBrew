@@ -1,0 +1,10 @@
+{
+    "name": "MacTeX",
+    "description": "Full TeX Live distribution with GUI applications",
+    "version": "2024.0312",
+    "url": "https://mirror.ctan.org/systems/mac/mactex/mactex-20240312.pkg",
+    "bundleId": "org.tug.mactex.gui2024",
+    "homepage": "https://www.tug.org/mactex/",
+    "fileName": "mactex-20240312.pkg",
+    "previous_version": "2024.0312"
+}

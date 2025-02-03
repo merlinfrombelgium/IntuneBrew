@@ -1,10 +1,10 @@
 {
-  "name": "OrbStack",
-  "description": "Replacement for Docker Desktop",
-  "version": "1.9.4_18819",
-  "url": "https://cdn-updates.orbstack.dev/arm64/OrbStack_v1.9.4_18819_arm64.dmg",
-  "bundleId": "dev.kdrag0n.MacVirt",
-  "homepage": "https://orbstack.dev/",
-  "fileName": "OrbStack_v1.9.4_18819_arm64.dmg",
-  "previous_version": "1.9.4_18819"
+    "name": "OrbStack",
+    "description": "Replacement for Docker Desktop",
+    "version": "1.9.5_18849",
+    "url": "https://cdn-updates.orbstack.dev/arm64/OrbStack_v1.9.5_18849_arm64.dmg",
+    "bundleId": "dev.kdrag0n.MacVirt",
+    "homepage": "https://orbstack.dev/",
+    "fileName": "OrbStack_v1.9.5_18849_arm64.dmg",
+    "previous_version": "1.9.5_18849"
 }

@@ -1,0 +1,11 @@
+{
+    "name": "MenuBar Stats",
+    "description": "System monitor with temperature & fans plugins",
+    "version": "3.9",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/menubar_stats_3.9.pkg",
+    "bundleId": null,
+    "homepage": "https://seense.com/menubarstats/",
+    "fileName": "menubar_stats_3.9.pkg",
+    "type": "app",
+    "previous_version": "3.9"
+}

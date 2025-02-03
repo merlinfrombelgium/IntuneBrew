@@ -1,0 +1,10 @@
+{
+    "name": "LM Studio",
+    "description": "Discover, download, and run local LLMs",
+    "version": "0.3.9,5",
+    "url": "https://installers.lmstudio.ai/darwin/arm64/0.3.9-5/LM-Studio-0.3.9-5-arm64.dmg",
+    "bundleId": "ai.elementlabs.lmstudio",
+    "homepage": "https://lmstudio.ai/",
+    "fileName": "LM-Studio-0.3.9-5-arm64.dmg",
+    "previous_version": "0.3.9,5"
+}

@@ -16,14 +16,28 @@ from cryptography.hazmat.backends import default_backend
 import os.path
 import base64
 from pathlib import Path
+from github_sync import GitHubSync
+from datetime import datetime, timedelta
 
-app = Flask(__name__)
+# Set up logging first
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
+
+# Initialize GitHubSync before creating the Flask app
+github_sync = GitHubSync()
+
+# Try to perform the initial update check
+try:
+    logger.info("Performing initial update check during startup")
+    github_sync.check_for_updates()
+except Exception as e:
+    logger.error(f"Error during initial update check: {str(e)}")
+
+app = Flask(__name__)
 
 def expand_path(path):
     """Expand path with support for ~ on all platforms."""
@@ -280,6 +294,9 @@ def favicon():
 @app.route('/')
 def index():
     try:
+        # Check for updates if it's been more than 24 hours
+        schedule_updates_check()
+        
         with open('config.json', 'r') as f:
             config = json.load(f)
         return render_template('index.html', 
@@ -288,6 +305,46 @@ def index():
     except Exception as e:
         logger.error(f'Error loading config: {str(e)}')
         return jsonify({'error': 'Configuration error'}), 500
+
+@app.route('/api/updates/check', methods=['GET'])
+def check_updates():
+    """Check for updates from GitHub"""
+    try:
+        added_apps = github_sync.check_for_updates()
+        return jsonify({
+            "added_apps": added_apps,
+            "last_check": github_sync.get_last_check()
+        })
+    except Exception as e:
+        logger.error(f"Error checking updates: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/updates/history', methods=['GET'])
+def get_update_history():
+    """Get update history"""
+    try:
+        updates = github_sync.get_update_history()
+        return jsonify(updates)
+    except Exception as e:
+        logger.error(f"Error getting update history: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# Schedule daily updates check
+def schedule_updates_check():
+    """Check for updates if last check was more than 24 hours ago"""
+    try:
+        last_check = github_sync.get_last_check()
+        if not last_check:
+            logger.info("No previous check found, performing initial check")
+            github_sync.check_for_updates()
+            return
+        
+        last_check_time = datetime.fromisoformat(last_check)
+        if datetime.utcnow() - last_check_time > timedelta(days=1):
+            logger.info("Last check was more than 24 hours ago, checking for updates")
+            github_sync.check_for_updates()
+    except Exception as e:
+        logger.error(f"Error in scheduled update check: {str(e)}")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3000)

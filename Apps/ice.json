@@ -1,0 +1,11 @@
+{
+    "name": "Ice",
+    "description": "Menu bar manager",
+    "version": "0.11.12",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/ice_0.11.12.pkg",
+    "bundleId": "com.jordanbaird.Ice",
+    "homepage": "https://icemenubar.app/",
+    "fileName": "ice_0.11.12.pkg",
+    "type": "app",
+    "previous_version": "0.11.12"
+}

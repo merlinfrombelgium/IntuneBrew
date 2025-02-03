@@ -1,10 +1,10 @@
 {
-  "name": "Citrix Workspace",
-  "description": "Managed desktop virtualization solution",
-  "version": "24.11.0.55",
-  "url": "https://downloadplugins.citrix.com/ReceiverUpdates/Prod/Receiver/Mac/CitrixWorkspaceAppUniversal24.11.0.55.pkg",
-  "bundleId": null,
-  "homepage": "https://docs.citrix.com/en-us/citrix-workspace",
-  "fileName": "CitrixWorkspaceAppUniversal24.11.0.55.pkg",
-  "previous_version": "24.11.0.55"
+    "name": "Citrix Workspace",
+    "description": "Managed desktop virtualization solution",
+    "version": "24.11.0.55",
+    "url": "https://downloadplugins.citrix.com/ReceiverUpdates/Prod/Receiver/Mac/CitrixWorkspaceAppUniversal24.11.0.55.pkg",
+    "bundleId": "com.citrix.receiver.nomas",
+    "homepage": "https://docs.citrix.com/en-us/citrix-workspace",
+    "fileName": "CitrixWorkspaceAppUniversal24.11.0.55.pkg",
+    "previous_version": "24.11.0.55"
 }

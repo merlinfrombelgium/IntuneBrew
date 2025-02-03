@@ -1,0 +1,10 @@
+{
+    "name": "Azul Zulu Java Standard Edition Development Kit",
+    "description": "OpenJDK distribution from Azul",
+    "version": "23.0.2,23.32.11",
+    "url": "https://cdn.azul.com/zulu/bin/zulu23.32.11-ca-jdk23.0.2-macosx_aarch64.dmg",
+    "bundleId": "com.azulsystems.zulu.23",
+    "homepage": "https://www.azul.com/downloads/",
+    "fileName": "zulu23.32.11-ca-jdk23.0.2-macosx_aarch64.dmg",
+    "previous_version": "23.0.2,23.32.11"
+}

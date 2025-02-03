@@ -1,10 +1,10 @@
 {
-  "name": "Santa",
-  "description": "Binary authorization system",
-  "version": "2024.9",
-  "url": "https://github.com/google/santa/releases/download/2024.9/santa-2024.9.dmg",
-  "bundleId": "com.google.santa",
-  "homepage": "https://github.com/google/santa",
-  "fileName": "santa-2024.9.dmg",
-  "previous_version": "2024.9"
+    "name": "Santa",
+    "description": "Binary authorization system",
+    "version": "2024.9",
+    "url": "https://github.com/google/santa/releases/download/2024.9/santa-2024.9.dmg",
+    "bundleId": "com.google.santa",
+    "homepage": "https://github.com/google/santa",
+    "fileName": "santa-2024.9.dmg",
+    "previous_version": "2024.9"
 }

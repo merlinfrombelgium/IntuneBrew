@@ -1,0 +1,10 @@
+{
+    "name": "Keka",
+    "description": "File archiver",
+    "version": "1.4.7",
+    "url": "https://github.com/aonez/Keka/releases/download/v1.4.7/Keka-1.4.7.dmg",
+    "bundleId": "com.aone.keka",
+    "homepage": "https://www.keka.io/",
+    "fileName": "Keka-1.4.7.dmg",
+    "previous_version": "1.4.7"
+}

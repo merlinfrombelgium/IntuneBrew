@@ -1,10 +1,10 @@
 {
-  "name": "Foxit PDF Editor",
-  "description": "PDF Editor",
-  "version": "13.1.6",
-  "url": "https://cdn01.foxitsoftware.com/pub/foxit/phantomPDF/desktop/mac/13.x/13.1.6/FoxitPDFEditor1316.L10N.Setup.pkg",
-  "bundleId": "com.foxit.pkg.pdfeditor",
-  "homepage": "https://www.foxit.com/pdf-editor/",
-  "fileName": "FoxitPDFEditor1316.L10N.Setup.pkg",
-  "previous_version": "13.1.6"
+    "name": "Foxit PDF Editor",
+    "description": "PDF Editor",
+    "version": "13.1.6",
+    "url": "https://cdn01.foxitsoftware.com/pub/foxit/phantomPDF/desktop/mac/13.x/13.1.6/FoxitPDFEditor1316.L10N.Setup.pkg",
+    "bundleId": "com.foxit.pkg.pdfeditor",
+    "homepage": "https://www.foxit.com/pdf-editor/",
+    "fileName": "FoxitPDFEditor1316.L10N.Setup.pkg",
+    "previous_version": "13.1.6"
 }

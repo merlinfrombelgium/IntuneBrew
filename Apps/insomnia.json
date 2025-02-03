@@ -1,0 +1,10 @@
+{
+    "name": "Insomnia",
+    "description": "HTTP and GraphQL Client",
+    "version": "10.3.0",
+    "url": "https://github.com/Kong/insomnia/releases/download/core%4010.3.0/Insomnia.Core-10.3.0.dmg",
+    "bundleId": "com.insomnia.app",
+    "homepage": "https://insomnia.rest/",
+    "fileName": "Insomnia.Core-10.3.0.dmg",
+    "previous_version": "10.3.0"
+}

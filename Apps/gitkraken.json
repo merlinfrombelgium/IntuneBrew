@@ -1,11 +1,11 @@
 {
-  "name": "GitKraken",
-  "description": "Git client focusing on productivity",
-  "version": "10.6.1",
-  "url": "https://intunebrew.blob.core.windows.net/pkg/gitkraken_10.6.1.pkg",
-  "bundleId": "com.axosoft.gitkraken",
-  "homepage": "https://www.gitkraken.com/",
-  "fileName": "gitkraken_10.6.1.pkg",
-  "type": "app",
-  "previous_version": "10.6.1"
+    "name": "GitKraken",
+    "description": "Git client focusing on productivity",
+    "version": "10.6.3",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/gitkraken_10.6.3.pkg",
+    "bundleId": "com.axosoft.gitkraken",
+    "homepage": "https://www.gitkraken.com/",
+    "fileName": "gitkraken_10.6.3.pkg",
+    "type": "app",
+    "previous_version": "10.6.3"
 }

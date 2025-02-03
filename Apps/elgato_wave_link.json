@@ -1,10 +1,10 @@
 {
-  "name": "Elgato Wave Link",
-  "description": "Software custom-built for content creation",
-  "version": "1.10.1.2293",
-  "url": "https://edge.elgato.com/egc/macos/wavelink/1.10.1/WaveLink_1.10.1.2293.pkg",
-  "bundleId": "com.elgato.pkg.WaveLink",
-  "homepage": "https://www.elgato.com/ww/en/s/downloads",
-  "fileName": "WaveLink_1.10.1.2293.pkg",
-  "previous_version": "1.10.1.2293"
+    "name": "Elgato Wave Link",
+    "description": "Software custom-built for content creation",
+    "version": "1.10.1.2293",
+    "url": "https://edge.elgato.com/egc/macos/wavelink/1.10.1/WaveLink_1.10.1.2293.pkg",
+    "bundleId": "com.elgato.pkg.WaveLink",
+    "homepage": "https://www.elgato.com/ww/en/s/downloads",
+    "fileName": "WaveLink_1.10.1.2293.pkg",
+    "previous_version": "1.10.1.2293"
 }

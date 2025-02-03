@@ -1,0 +1,10 @@
+{
+    "name": "DB Browser for SQLite",
+    "description": "Browser for SQLite databases",
+    "version": "3.13.1",
+    "url": "https://github.com/sqlitebrowser/sqlitebrowser/releases/download/v3.13.1/DB.Browser.for.SQLite-v3.13.1.dmg",
+    "bundleId": "net.sourceforge.sqlitebrowser",
+    "homepage": "https://sqlitebrowser.org/",
+    "fileName": "DB.Browser.for.SQLite-v3.13.1.dmg",
+    "previous_version": "3.13.1"
+}

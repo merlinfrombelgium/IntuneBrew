@@ -1,0 +1,10 @@
+{
+    "name": "Bruno",
+    "description": "Opensource IDE for exploring and testing api's",
+    "version": "1.38.1",
+    "url": "https://github.com/usebruno/bruno/releases/download/v1.38.1/bruno_1.38.1_arm64_mac.dmg",
+    "bundleId": "com.usebruno.app",
+    "homepage": "https://www.usebruno.com/",
+    "fileName": "bruno_1.38.1_arm64_mac.dmg",
+    "previous_version": "1.38.1"
+}

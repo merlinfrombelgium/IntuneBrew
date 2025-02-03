@@ -1,11 +1,11 @@
 {
-  "name": "Basecamp",
-  "description": "All-In-One Toolkit for Working Remotely",
-  "version": "3,2.3.16",
-  "url": "https://intunebrew.blob.core.windows.net/pkg/basecamp_3,2.3.16.pkg",
-  "bundleId": null,
-  "homepage": "https://basecamp.com/help/3,2.3.16/guides/apps/mac",
-  "fileName": "basecamp_3,2.3.16.pkg",
-  "type": "app",
-  "previous_version": "3,2.3.16"
+    "name": "Basecamp",
+    "description": "All-In-One Toolkit for Working Remotely",
+    "version": "3,2.4.1",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/basecamp_3,2.4.1.pkg",
+    "bundleId": "com.basecamp.basecamp3",
+    "homepage": "https://basecamp.com/help/3,2.4.1/guides/apps/mac",
+    "fileName": "basecamp_3,2.4.1.pkg",
+    "type": "app",
+    "previous_version": "3,2.4.1"
 }

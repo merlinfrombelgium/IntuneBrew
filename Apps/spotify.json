@@ -1,10 +1,10 @@
 {
-  "name": "Spotify",
-  "description": "Music streaming service",
-  "version": "1.2.55.235",
-  "url": "https://download.scdn.co/SpotifyARM64.dmg",
-  "bundleId": "com.spotify.client",
-  "homepage": "https://www.spotify.com/",
-  "fileName": "SpotifyARM64.dmg",
-  "previous_version": "1.2.55.235"
+    "name": "Spotify",
+    "description": "Music streaming service",
+    "version": "1.2.56.502",
+    "url": "https://download.scdn.co/SpotifyARM64.dmg",
+    "bundleId": "com.spotify.client",
+    "homepage": "https://www.spotify.com/",
+    "fileName": "SpotifyARM64.dmg",
+    "previous_version": "1.2.56.502"
 }
