@@ -1,10 +1,10 @@
 {
-  "name": "Audacity",
-  "description": "Multi-track audio editor and recorder",
-  "version": "3.7.1",
-  "url": "https://github.com/audacity/audacity/releases/download/Audacity-3.7.1/audacity-macOS-3.7.1-arm64.dmg",
-  "bundleId": null,
-  "homepage": "https://www.audacityteam.org/",
-  "fileName": "audacity-macOS-3.7.1-arm64.dmg",
-  "previous_version": "3.7.1"
+    "name": "Audacity",
+    "description": "Multi-track audio editor and recorder",
+    "version": "3.7.1",
+    "url": "https://github.com/audacity/audacity/releases/download/Audacity-3.7.1/audacity-macOS-3.7.1-arm64.dmg",
+    "bundleId": "org.audacityteam.audacity",
+    "homepage": "https://www.audacityteam.org/",
+    "fileName": "audacity-macOS-3.7.1-arm64.dmg",
+    "previous_version": "3.7.1"
 }

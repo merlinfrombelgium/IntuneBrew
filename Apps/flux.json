@@ -1,11 +1,11 @@
 {
-  "name": "f.lux",
-  "description": "Screen colour temperature controller",
-  "version": "42.2",
-  "url": "https://intunebrew.blob.core.windows.net/pkg/flux_42.2.pkg",
-  "bundleId": "org.herf.Flux",
-  "homepage": "https://justgetflux.com/",
-  "fileName": "flux_42.2.pkg",
-  "type": "app",
-  "previous_version": "42.2"
+    "name": "f.lux",
+    "description": "Screen colour temperature controller",
+    "version": "42.2",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/flux_42.2.pkg",
+    "bundleId": "org.herf.Flux",
+    "homepage": "https://justgetflux.com/",
+    "fileName": "flux_42.2.pkg",
+    "type": "app",
+    "previous_version": "42.2"
 }

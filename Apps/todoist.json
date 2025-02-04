@@ -1,10 +1,10 @@
 {
-  "name": "Todoist",
-  "description": "To-do list",
-  "version": "9.9.7",
-  "url": "https://electron-dl.todoist.com/mac/Todoist-darwin-9.9.7-arm64-latest.dmg",
-  "bundleId": "com.todoist.mac.Todoist",
-  "homepage": "https://todoist.com/home",
-  "fileName": "Todoist-darwin-9.9.7-arm64-latest.dmg",
-  "previous_version": "9.9.7"
+    "name": "Todoist",
+    "description": "To-do list",
+    "version": "9.10.0",
+    "url": "https://electron-dl.todoist.com/mac/Todoist-darwin-9.10.0-arm64-latest.dmg",
+    "bundleId": "com.todoist.mac.Todoist",
+    "homepage": "https://todoist.com/home",
+    "fileName": "Todoist-darwin-9.10.0-arm64-latest.dmg",
+    "previous_version": "9.10.0"
 }

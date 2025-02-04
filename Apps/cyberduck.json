@@ -1,0 +1,11 @@
+{
+    "name": "Cyberduck",
+    "description": "Server and cloud storage browser",
+    "version": "9.1.2,42722",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/cyberduck_9.1.2,42722.pkg",
+    "bundleId": "ch.sudo.cyberduck",
+    "homepage": "https://cyberduck.io/",
+    "fileName": "cyberduck_9.1.2,42722.pkg",
+    "type": "app",
+    "previous_version": "9.1.2,42722"
+}

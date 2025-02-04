@@ -1,11 +1,11 @@
 {
-  "name": "Caffeine",
-  "description": "Utility that prevents the system from going to sleep",
-  "version": "1.4.3",
-  "url": "https://intunebrew.blob.core.windows.net/pkg/caffeine_1.4.3.pkg",
-  "bundleId": "net.domzilla.caffeine",
-  "homepage": "https://www.caffeine-app.net/",
-  "fileName": "caffeine_1.4.3.pkg",
-  "type": "app",
-  "previous_version": "1.4.3"
+    "name": "Caffeine",
+    "description": "Utility that prevents the system from going to sleep",
+    "version": "1.5",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/caffeine_1.5.pkg",
+    "bundleId": "net.domzilla.caffeine",
+    "homepage": "https://www.caffeine-app.net/",
+    "fileName": "caffeine_1.5.pkg",
+    "type": "app",
+    "previous_version": "1.5"
 }

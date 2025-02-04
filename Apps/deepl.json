@@ -1,11 +1,11 @@
 {
-  "name": "DeepL",
-  "description": "Trains AIs to understand and translate texts",
-  "version": "25.1.11615133",
-  "url": "https://intunebrew.blob.core.windows.net/pkg/deepl_25.1.11615133.pkg",
-  "bundleId": "com.linguee.DeepLCopyTranslator",
-  "homepage": "https://www.deepl.com/",
-  "fileName": "deepl_25.1.11615133.pkg",
-  "type": "app",
-  "previous_version": "25.1.11615133"
+    "name": "DeepL",
+    "description": "Trains AIs to understand and translate texts",
+    "version": "25.1.11615133",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/deepl_25.1.11615133.pkg",
+    "bundleId": "com.linguee.DeepLCopyTranslator",
+    "homepage": "https://www.deepl.com/",
+    "fileName": "deepl_25.1.11615133.pkg",
+    "type": "app",
+    "previous_version": "25.1.11615133"
 }

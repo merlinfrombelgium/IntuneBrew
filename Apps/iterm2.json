@@ -1,11 +1,11 @@
 {
-  "name": "iTerm2",
-  "description": "Terminal emulator as alternative to Apple's Terminal app",
-  "version": "3.5.11",
-  "url": "https://intunebrew.blob.core.windows.net/pkg/iterm2_3.5.11.pkg",
-  "bundleId": "com.googlecode.iterm2",
-  "homepage": "https://iterm2.com/",
-  "fileName": "iterm2_3.5.11.pkg",
-  "type": "app",
-  "previous_version": "3.5.11"
+    "name": "iTerm2",
+    "description": "Terminal emulator as alternative to Apple's Terminal app",
+    "version": "3.5.11",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/iterm2_3.5.11.pkg",
+    "bundleId": "com.googlecode.iterm2",
+    "homepage": "https://iterm2.com/",
+    "fileName": "iterm2_3.5.11.pkg",
+    "type": "app",
+    "previous_version": "3.5.11"
 }

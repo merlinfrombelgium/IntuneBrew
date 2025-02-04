@@ -1,0 +1,10 @@
+{
+    "name": "Etcher",
+    "description": "Tool to flash OS images to SD cards & USB drives",
+    "version": "1.19.25",
+    "url": "https://github.com/balena-io/etcher/releases/download/v1.19.25/balenaEtcher-1.19.25-arm64.dmg",
+    "bundleId": "io.balena.etcher.*",
+    "homepage": "https://balena.io/etcher",
+    "fileName": "balenaEtcher-1.19.25-arm64.dmg",
+    "previous_version": "1.19.25"
+}

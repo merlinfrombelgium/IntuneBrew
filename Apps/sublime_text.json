@@ -1,11 +1,11 @@
 {
-  "name": "Sublime Text",
-  "description": "Text editor for code, markup and prose",
-  "version": "4192",
-  "url": "https://intunebrew.blob.core.windows.net/pkg/sublime_text_4192.pkg",
-  "bundleId": "com.sublimetext.4",
-  "homepage": "https://www.sublimetext.com/",
-  "fileName": "sublime_text_4192.pkg",
-  "type": "app",
-  "previous_version": "4192"
+    "name": "Sublime Text",
+    "description": "Text editor for code, markup and prose",
+    "version": "4192",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/sublime_text_4192.pkg",
+    "bundleId": "com.sublimetext.4",
+    "homepage": "https://www.sublimetext.com/",
+    "fileName": "sublime_text_4192.pkg",
+    "type": "app",
+    "previous_version": "4192"
 }

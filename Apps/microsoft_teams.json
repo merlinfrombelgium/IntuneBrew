@@ -1,10 +1,10 @@
 {
-  "name": "Microsoft Teams",
-  "description": "Meet, chat, call, and collaborate in just one place",
-  "version": "24335.207.3345.5574",
-  "url": "https://statics.teams.cdn.office.net/production-osx/24335.207.3345.5574/MicrosoftTeams.pkg",
-  "bundleId": "com.microsoft.autoupdate2",
-  "homepage": "https://www.microsoft.com/en/microsoft-teams/group-chat-software/",
-  "fileName": "MicrosoftTeams.pkg",
-  "previous_version": "24335.207.3345.5574"
+    "name": "Microsoft Teams",
+    "description": "Meet, chat, call, and collaborate in just one place",
+    "version": "25007.203.3361.6689",
+    "url": "https://statics.teams.cdn.office.net/production-osx/25007.203.3361.6689/MicrosoftTeams.pkg",
+    "bundleId": "com.microsoft.autoupdate2",
+    "homepage": "https://www.microsoft.com/en/microsoft-teams/group-chat-software/",
+    "fileName": "MicrosoftTeams.pkg",
+    "previous_version": "25007.203.3361.6689"
 }

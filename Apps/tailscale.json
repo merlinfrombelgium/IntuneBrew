@@ -1,10 +1,10 @@
 {
-  "name": "Tailscale",
-  "description": "Mesh VPN based on WireGuard",
-  "version": "1.78.1",
-  "url": "https://pkgs.tailscale.com/stable/Tailscale-1.78.1-macos.pkg",
-  "bundleId": "com.tailscale.ipn.macsys",
-  "homepage": "https://tailscale.com/",
-  "fileName": "Tailscale-1.78.1-macos.pkg",
-  "previous_version": "1.78.1"
+    "name": "Tailscale",
+    "description": "Mesh VPN based on WireGuard",
+    "version": "1.80.0",
+    "url": "https://pkgs.tailscale.com/stable/Tailscale-1.80.0-macos.pkg",
+    "bundleId": "com.tailscale.ipn.macsys",
+    "homepage": "https://tailscale.com/",
+    "fileName": "Tailscale-1.80.0-macos.pkg",
+    "previous_version": "1.80.0"
 }

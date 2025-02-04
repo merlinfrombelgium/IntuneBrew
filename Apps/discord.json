@@ -1,10 +1,10 @@
 {
-  "name": "Discord",
-  "description": "Voice and text chat software",
-  "version": "0.0.332",
-  "url": "https://dl.discordapp.net/apps/osx/0.0.332/Discord.dmg",
-  "bundleId": null,
-  "homepage": "https://discord.com/",
-  "fileName": "Discord.dmg",
-  "previous_version": "0.0.332"
+    "name": "Discord",
+    "description": "Voice and text chat software",
+    "version": "0.0.334",
+    "url": "https://dl.discordapp.net/apps/osx/0.0.334/Discord.dmg",
+    "bundleId": "com.hnc.Discord",
+    "homepage": "https://discord.com/",
+    "fileName": "Discord.dmg",
+    "previous_version": "0.0.334"
 }

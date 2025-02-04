@@ -1,10 +1,10 @@
 {
-  "name": "Miro",
-  "description": "Online collaborative whiteboard platform",
-  "version": "0.10.80",
-  "url": "https://desktop.miro.com/platforms/darwin-arm64/Install-Miro.dmg",
-  "bundleId": "com.electron.realtimeboard",
-  "homepage": "https://miro.com/",
-  "fileName": "Install-Miro.dmg",
-  "previous_version": "0.10.80"
+    "name": "Miro",
+    "description": "Online collaborative whiteboard platform",
+    "version": "0.10.80",
+    "url": "https://desktop.miro.com/platforms/darwin-arm64/Install-Miro.dmg",
+    "bundleId": "com.electron.realtimeboard",
+    "homepage": "https://miro.com/",
+    "fileName": "Install-Miro.dmg",
+    "previous_version": "0.10.80"
 }

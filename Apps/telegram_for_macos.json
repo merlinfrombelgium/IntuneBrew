@@ -1,0 +1,11 @@
+{
+    "name": "Telegram for macOS",
+    "description": "Messaging app with a focus on speed and security",
+    "version": "11.7,270736",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/telegram_for_macos_11.7,270736.pkg",
+    "bundleId": "ru.keepcoder.Telegram",
+    "homepage": "https://macos.telegram.org/",
+    "fileName": "telegram_for_macos_11.7,270736.pkg",
+    "type": "app",
+    "previous_version": "11.7,270736"
+}

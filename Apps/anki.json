@@ -1,10 +1,10 @@
 {
-  "name": "Anki",
-  "description": "Memory training application",
-  "version": "24.11",
-  "url": "https://github.com/ankitects/anki/releases/download/24.11/anki-24.11-mac-apple-qt6.dmg",
-  "bundleId": null,
-  "homepage": "https://apps.ankiweb.net/",
-  "fileName": "anki-24.11-mac-apple-qt6.dmg",
-  "previous_version": "24.11"
+    "name": "Anki",
+    "description": "Memory training application",
+    "version": "24.11",
+    "url": "https://github.com/ankitects/anki/releases/download/24.11/anki-24.11-mac-apple-qt6.dmg",
+    "bundleId": "net.ankiweb.dtop",
+    "homepage": "https://apps.ankiweb.net/",
+    "fileName": "anki-24.11-mac-apple-qt6.dmg",
+    "previous_version": "24.11"
 }

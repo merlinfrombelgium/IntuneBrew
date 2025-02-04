@@ -1,8 +1,5 @@
+.specstory/
+__pycache__/
 attached_assets/*
 config.json
-
-# config.json.example
-{
-  "apiKey": "YOUR_API_KEY",
-  "databaseUrl": "YOUR_DATABASE_URL"
-}
+last_check.json

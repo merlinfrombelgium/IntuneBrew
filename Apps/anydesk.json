@@ -1,10 +1,10 @@
 {
-  "name": "AnyDesk",
-  "description": "Allows connection to a computer remotely",
-  "version": "8.1.4",
-  "url": "https://download.anydesk.com/anydesk.dmg",
-  "bundleId": null,
-  "homepage": "https://anydesk.com/",
-  "fileName": "anydesk.dmg",
-  "previous_version": "8.1.4"
+    "name": "AnyDesk",
+    "description": "Allows connection to a computer remotely",
+    "version": "8.1.4",
+    "url": "https://download.anydesk.com/anydesk.dmg",
+    "bundleId": "com.philandro.anydesk",
+    "homepage": "https://anydesk.com/",
+    "fileName": "anydesk.dmg",
+    "previous_version": "8.1.4"
 }

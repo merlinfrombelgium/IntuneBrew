@@ -1,10 +1,10 @@
 {
-  "name": "Windows App",
-  "description": "Connect to Windows",
-  "version": "11.0.9",
-  "url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Windows_App_11.0.9_installer.pkg",
-  "bundleId": "com.microsoft.package.Microsoft_AutoUpdate.app",
-  "homepage": "https://aka.ms/WindowsApp",
-  "fileName": "Windows_App_11.0.9_installer.pkg",
-  "previous_version": "11.0.9"
+    "name": "Windows App",
+    "description": "Connect to Windows",
+    "version": "11.0.9",
+    "url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Windows_App_11.0.9_installer.pkg",
+    "bundleId": "com.microsoft.package.Microsoft_AutoUpdate.app",
+    "homepage": "https://aka.ms/WindowsApp",
+    "fileName": "Windows_App_11.0.9_installer.pkg",
+    "previous_version": "11.0.9"
 }

@@ -1,0 +1,10 @@
+{
+    "name": "FreeCAD",
+    "description": "3D parametric modeller",
+    "version": "1.0.0",
+    "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.0.0/FreeCAD_1.0.0-conda-macOS-arm64-py311.dmg",
+    "bundleId": "org.freecad.FreeCAD",
+    "homepage": "https://www.freecad.org/",
+    "fileName": "FreeCAD_1.0.0-conda-macOS-arm64-py311.dmg",
+    "previous_version": "1.0.0"
+}

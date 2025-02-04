@@ -1,0 +1,10 @@
+{
+    "name": "Alacritty",
+    "description": "GPU-accelerated terminal emulator",
+    "version": "0.15.0",
+    "url": "https://github.com/alacritty/alacritty/releases/download/v0.15.0/Alacritty-v0.15.0.dmg",
+    "bundleId": "org.alacritty",
+    "homepage": "https://github.com/alacritty/alacritty/",
+    "fileName": "Alacritty-v0.15.0.dmg",
+    "previous_version": "0.15.0"
+}

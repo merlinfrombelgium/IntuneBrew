@@ -1,10 +1,10 @@
 {
-  "name": "NetBeans IDE",
-  "description": "Development environment, tooling platform and application framework",
-  "version": "24",
-  "url": "https://dlcdn.apache.org/netbeans/netbeans-installers/24/Apache-NetBeans-24.pkg",
-  "bundleId": "org.apache.netbeans",
-  "homepage": "https://netbeans.apache.org/",
-  "fileName": "Apache-NetBeans-24.pkg",
-  "previous_version": "24"
+    "name": "NetBeans IDE",
+    "description": "Development environment, tooling platform and application framework",
+    "version": "24",
+    "url": "https://dlcdn.apache.org/netbeans/netbeans-installers/24/Apache-NetBeans-24.pkg",
+    "bundleId": "org.apache.netbeans",
+    "homepage": "https://netbeans.apache.org/",
+    "fileName": "Apache-NetBeans-24.pkg",
+    "previous_version": "24"
 }

@@ -1,10 +1,10 @@
 {
-  "name": "Webex Teams",
-  "description": "Video communication and virtual meeting platform",
-  "version": "45.1.0.31549",
-  "url": "https://binaries.webex.com/webex-macos-apple-silicon/Webex.dmg",
-  "bundleId": "com.cisco.webex",
-  "homepage": "https://www.webex.com/",
-  "fileName": "Webex.dmg",
-  "previous_version": "45.1.0.31549"
+    "name": "Webex Teams",
+    "description": "Video communication and virtual meeting platform",
+    "version": "45.1.0.31549",
+    "url": "https://binaries.webex.com/webex-macos-apple-silicon/Webex.dmg",
+    "bundleId": "com.cisco.webex",
+    "homepage": "https://www.webex.com/",
+    "fileName": "Webex.dmg",
+    "previous_version": "45.1.0.31549"
 }

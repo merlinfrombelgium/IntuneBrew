@@ -1,0 +1,10 @@
+{
+    "name": "Transmission",
+    "description": "Open-source BitTorrent client",
+    "version": "4.0.6",
+    "url": "https://github.com/transmission/transmission/releases/download/4.0.6/Transmission-4.0.6.dmg",
+    "bundleId": "org.m0k.transmission",
+    "homepage": "https://transmissionbt.com/",
+    "fileName": "Transmission-4.0.6.dmg",
+    "previous_version": "4.0.6"
+}

@@ -1,10 +1,10 @@
 {
-  "name": "ChatGPT",
-  "description": "OpenAI's official ChatGPT desktop app",
-  "version": "1.2025.009,1737138094",
-  "url": "https://persistent.oaistatic.com/sidekick/public/ChatGPT_Desktop_public_1.2025.009_1737138094.dmg",
-  "bundleId": "com.openai.chat",
-  "homepage": "https://chatgpt.com/",
-  "fileName": "ChatGPT_Desktop_public_1.2025.009_1737138094.dmg",
-  "previous_version": "1.2025.009,1737138094"
+    "name": "ChatGPT",
+    "description": "OpenAI's official ChatGPT desktop app",
+    "version": "1.2025.021,1737774839",
+    "url": "https://persistent.oaistatic.com/sidekick/public/ChatGPT_Desktop_public_1.2025.021_1737774839.dmg",
+    "bundleId": "com.openai.chat",
+    "homepage": "https://chatgpt.com/",
+    "fileName": "ChatGPT_Desktop_public_1.2025.021_1737774839.dmg",
+    "previous_version": "1.2025.021,1737774839"
 }

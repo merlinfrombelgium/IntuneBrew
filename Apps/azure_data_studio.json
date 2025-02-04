@@ -1,11 +1,11 @@
 {
-  "name": "Azure Data Studio",
-  "description": "Data management tool that enables working with SQL Server",
-  "version": "1.50.0",
-  "url": "https://intunebrew.blob.core.windows.net/pkg/azure_data_studio_1.50.0.pkg",
-  "bundleId": null,
-  "homepage": "https://docs.microsoft.com/en-us/sql/azure-data-studio/",
-  "fileName": "azure_data_studio_1.50.0.pkg",
-  "type": "app",
-  "previous_version": "1.50.0"
+    "name": "Azure Data Studio",
+    "description": "Data management tool that enables working with SQL Server",
+    "version": "1.51.0",
+    "url": "https://intunebrew.blob.core.windows.net/pkg/azure_data_studio_1.51.0.pkg",
+    "bundleId": "com.azuredatastudio.oss",
+    "homepage": "https://docs.microsoft.com/en-us/sql/azure-data-studio/",
+    "fileName": "azure_data_studio_1.51.0.pkg",
+    "type": "app",
+    "previous_version": "1.51.0"
 }

@@ -1,10 +1,10 @@
 {
-  "name": "Elgato Camera Hub",
-  "description": "Elgato FACECAM configuration tool",
-  "version": "1.11.0.4022",
-  "url": "https://edge.elgato.com/egc/macos/echm/1.11.0/Camera_Hub_1.11.0.4022.pkg",
-  "bundleId": "com.displaylink.displaylinkmanagerapp",
-  "homepage": "https://www.elgato.com/ww/en/s/downloads",
-  "fileName": "Camera_Hub_1.11.0.4022.pkg",
-  "previous_version": "1.11.0.4022"
+    "name": "Elgato Camera Hub",
+    "description": "Elgato FACECAM configuration tool",
+    "version": "1.11.0.4022",
+    "url": "https://edge.elgato.com/egc/macos/echm/1.11.0/Camera_Hub_1.11.0.4022.pkg",
+    "bundleId": "com.displaylink.displaylinkmanagerapp",
+    "homepage": "https://www.elgato.com/ww/en/s/downloads",
+    "fileName": "Camera_Hub_1.11.0.4022.pkg",
+    "previous_version": "1.11.0.4022"
 }
